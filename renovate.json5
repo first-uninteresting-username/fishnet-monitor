@@ -12,4 +12,32 @@
     'helpers:pinGitHubActionDigests',
     'docker:pinDigests',
   ],
+  customManagers: [
+    {
+      // frontend/vendor.lock: one line per vendored file,
+      //   file  package  version  path-in-package  sha256
+      customType: 'regex',
+      description: 'Frontend libraries vendored by scripts/vendor-frontend.sh',
+      managerFilePatterns: ['/^frontend/vendor\\.lock$/'],
+      matchStrings: [
+        '^[\\w.-]+[ \\t]+(?<depName>[@\\w./-]+)[ \\t]+(?<currentValue>\\d[\\w.+-]*)[ \\t]+\\S+[ \\t]+(?:[0-9a-f]{64}|-)[ \\t]*$',
+      ],
+      datasourceTemplate: 'npm',
+      versioningTemplate: 'npm',
+    },
+  ],
+  packageRules: [
+    {
+      // The lock holds a sum per file, so a bump is only complete once the
+      // script has downloaded the new files and rewritten the sums. The
+      // command must be allowed by allowedCommands in the self-hosted config
+      // (.github/workflows/renovate.yml).
+      matchFileNames: ['frontend/vendor.lock'],
+      postUpgradeTasks: {
+        commands: ['bash scripts/vendor-frontend.sh --update'],
+        fileFilters: ['frontend/vendor.lock', 'frontend/vendor/**'],
+        executionMode: 'branch',
+      },
+    },
+  ],
 }

@@ -41,6 +41,20 @@ devenv shell
 
 <!-- Add the exact commands to build/run, required env vars (with example values), and any system dependencies. -->
 
+## Dependency updates
+
+[Renovate](https://docs.renovatebot.com) runs self-hosted from
+`.github/workflows/renovate.yml` (every three hours, or on demand from the Actions
+tab) and reads `renovate.json5`. It also bumps the frontend libraries in
+`frontend/vendor.lock` and runs `scripts/vendor-frontend.sh --update` to refresh the
+checksums and vendored files; review that diff in the PR. `devenv.lock` is updated by
+`.github/workflows/update-devenv-lock.yml`.
+
+Setup: add a repository secret `RENOVATE_TOKEN`, a fine-grained personal access token
+for this repository with read/write access to Contents, Pull requests and Workflows,
+and read access to Metadata. Then uninstall the hosted Renovate GitHub app from the
+repository so the two don't both open PRs.
+
 ## Built with
 
 <!-- Languages, frameworks, libraries, tools. -->
