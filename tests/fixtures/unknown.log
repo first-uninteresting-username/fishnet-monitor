@@ -1,0 +1,10 @@
+Endpoint: https://lichess.org/fishnet
+Cores: 4
+Something fishnet 3 might print
+><> v3.0.0: 1.4 Mnps/core (nnue), 12 batches
+[    |            ] https://lichess.org/Xk3pQ9aB done (1342 knps/core)
+[    |            ] https://lichess.org/Xk3pQ9aB finished (1342 knps/core)
+[    |            ] https://lichess.org/Xk3pQ9aB finished (chess960, 1342 knps/core)
+Going idle for ever.
+W: A brand new warning
+D: A brand new debug line

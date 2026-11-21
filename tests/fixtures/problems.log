@@ -1,0 +1,24 @@
+
+### Running (SIGINT to stop) ...
+
+W: Requested logical 64 cores, but only 16 available. Capped.
+W: Failed to decrease CPU priority: Os { code: 13, kind: PermissionDenied, message: "Permission denied" }
+W: Unexpected status for queue status: 502 Bad Gateway
+E: error sending request for url (https://lichess.org/fishnet/acquire) -> client error (Connect) -> tcp connect error -> Connection refused (os error 111). Backing off 3.27s.
+E: Too many requests. Suspending requests for 60s.
+W: Unexpected response for acquire: 400 Bad Request: "{\"error\":\"Invalid fishnet version\"}"
+W: Official Stockfish timed out in worker 2. If this happens frequently it is better to stop and defer to clients with better hardware. Context: https://lichess.org/Xk3pQ9aB#12
+W: Fairy-Stockfish timed out in worker 1. Context: https://lichess.org/Va2nT3iB#4
+W: Aborting batch 9e4f01ab.
+W: Fishnet server does not support abort (404 for 9e4f01ab).
+E: Engine error: Broken pipe (os error 32)
+E: Stockfish process 4182 exited with status signal: 9 (SIGKILL)
+W: Worker 3 waiting for engine to shut down after error. Context: https://lichess.org/Hc1eA9aH#0
+Waiting 2.5s before attempting to start engine
+W: Implausible score Cp(-32001) at depth 24, context: https://lichess.org/Hc1eA9aH#7
+W: Ignoring invalid batch https://lichess.org/Np1sC7cJ: illegal uci: e2e5
+E: Dropping duplicate incoming batch 9e4f01ac
+E: Failed to write stats to "/data/fishnet-stats": Read-only file system (os error 30)
+E: Server rejected request: Invalid or revoked key
+E: Client update or reconfiguration might be required. Stopping queue.
+><> Stopping now.
