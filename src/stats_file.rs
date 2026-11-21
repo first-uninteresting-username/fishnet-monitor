@@ -32,10 +32,16 @@ pub fn parse(content: &str) -> Option<Totals> {
 }
 
 /// Polls `path` every `interval` and calls [`State::apply_stats_file`]
-/// whenever the content parses and differs from the last value applied.
+/// (then `on_change`) whenever the content parses and differs from the last
+/// value applied.
 /// A missing or half-written file is skipped silently (fishnet creates it
 /// after the first batch). Runs forever; spawn it as a task.
-pub async fn watch(path: PathBuf, interval: Duration, state: Arc<Mutex<State>>) {
+pub async fn watch(
+    path: PathBuf,
+    interval: Duration,
+    state: Arc<Mutex<State>>,
+    on_change: impl Fn(),
+) {
     let mut ticker = tokio::time::interval(interval);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut last = None;
@@ -47,6 +53,7 @@ pub async fn watch(path: PathBuf, interval: Duration, state: Arc<Mutex<State>>) 
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
                 .apply_stats_file(totals, std::time::SystemTime::now());
+            on_change();
         }
     }
 }

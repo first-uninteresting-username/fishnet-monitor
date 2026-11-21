@@ -10,4 +10,5 @@ pub mod snapshot;
 pub mod state;
 pub mod stats_file;
 pub mod supervisor;
+pub mod view;
 pub mod webhook;

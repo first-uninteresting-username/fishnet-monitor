@@ -357,6 +357,12 @@ impl State {
         }
     }
 
+    /// The `lookup` part of the page. The game lookup isn't built yet.
+    pub fn lookup_status(&self) -> serde_json::Value {
+        serde_json::json!({ "enabled": false, "state": "ok", "lastAt": null, "lastCount": 0,
+            "queued": 0, "missingAll": self.history.all.missing, "retryAt": null })
+    }
+
     /// Called every few seconds: time accounting and expiry in the
     /// history. Returns true when a new minute began.
     pub fn tick(&mut self, now: SystemTime) -> bool {

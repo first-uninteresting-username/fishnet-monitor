@@ -1,25 +1,36 @@
-//! The HTTP server: `/api/status`, `/metrics`, `/healthz`. Phase 3 adds the
-//! dashboard, `/api/history` and `/api/events`.
+//! The HTTP server: the dashboard's API (`/api/status`, `/api/history`,
+//! `/api/events`), `/metrics` and `/healthz`.
 
 use std::{
+    convert::Infallible,
     io::{BufRead, BufReader, Write},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream},
-    sync::{Arc, Mutex, MutexGuard, PoisonError},
+    sync::{Arc, Mutex, MutexGuard},
     time::{Duration, SystemTime},
 };
 
 use axum::{
     Json, Router,
-    extract::State as Extract,
+    extract::{Query, State as Extract},
     http::{StatusCode, header},
-    response::{IntoResponse, Response},
+    response::{
+        IntoResponse, Response,
+        sse::{Event, KeepAlive, Sse},
+    },
     routing::get,
 };
+use futures_util::{Stream, stream};
+use tokio::sync::watch;
 
 use crate::{
     metrics,
     state::{State, StatusContext},
+    view::{self, Changes, Topic, Tz},
 };
+
+/// How long `/api/events` waits after a change before sending, so a burst
+/// of lines (a batch line, then the stats file) goes out as one event.
+const COALESCE: Duration = Duration::from_millis(200);
 
 /// Timeout for each step of [`healthcheck`].
 const HEALTHCHECK_TIMEOUT: Duration = Duration::from_secs(3);
@@ -28,16 +39,24 @@ const HEALTHCHECK_TIMEOUT: Duration = Duration::from_secs(3);
 pub struct AppState {
     pub state: Arc<Mutex<State>>,
     pub ctx: Arc<StatusContext>,
+    pub changes: Arc<Changes>,
 }
 
 /// Routes:
 /// - `GET /api/status`: `State::status` as JSON.
+/// - `GET /api/history?tz=<minutes>`: [`view::history`]. `tz` is the page's
+///   `Date.getTimezoneOffset()`, for the "today" counts.
+/// - `GET /api/events?tz=<minutes>`: Server-Sent Events, one event per
+///   [`Topic`] (named after it, JSON data): all of them on connect, then
+///   each one again when it changes.
 /// - `GET /metrics`: `metrics::render`, with `metrics::CONTENT_TYPE`.
 /// - `GET /healthz`: 200 `ok\n` when healthy, else 503 with the reasons,
 ///   one per line.
 pub fn router(app: AppState) -> Router {
     Router::new()
         .route("/api/status", get(api_status))
+        .route("/api/history", get(api_history))
+        .route("/api/events", get(api_events))
         .route("/metrics", get(metrics_endpoint))
         .route("/healthz", get(healthz))
         .with_state(app)
@@ -87,7 +106,77 @@ fn loopback_if_unspecified(addr: SocketAddr) -> SocketAddr {
 /// Locks the shared state. A poisoned lock (a panic while it was held) is
 /// recovered rather than propagated, so the monitor keeps answering.
 fn lock(app: &AppState) -> MutexGuard<'_, State> {
-    app.state.lock().unwrap_or_else(PoisonError::into_inner)
+    view::lock(&app.state)
+}
+
+async fn api_history(Extract(app): Extract<AppState>, Query(tz): Query<Tz>) -> Response {
+    let body = view::history(&lock(&app), SystemTime::now(), tz);
+    ([(header::CACHE_CONTROL, "no-store")], Json(body)).into_response()
+}
+
+async fn api_events(
+    Extract(app): Extract<AppState>,
+    Query(tz): Query<Tz>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    Sse::new(events(app, tz)).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
+}
+
+/// The event stream of one page: every topic first, then the topics whose
+/// [`Changes`] counter moved, at most one event per topic per change burst.
+/// It ends when the counters are dropped (the monitor shuts down).
+fn events(app: AppState, tz: Tz) -> impl Stream<Item = Result<Event, Infallible>> {
+    struct Conn {
+        app: AppState,
+        tz: Tz,
+        rx: [watch::Receiver<u64>; 4],
+        pending: Vec<Topic>,
+    }
+    let mut rx = app.changes.subscribe();
+    for r in &mut rx {
+        r.mark_unchanged();
+    }
+    let conn = Conn {
+        app,
+        tz,
+        rx,
+        pending: Topic::ALL.iter().rev().copied().collect(),
+    };
+    stream::unfold(conn, |mut conn| async move {
+        if conn.pending.is_empty() {
+            let [a, b, c, d] = &mut conn.rx;
+            // `changed()` marks its receiver as seen, so remember which one
+            // woke us.
+            let woke = tokio::select! {
+                r = a.changed() => r.map(|()| 0),
+                r = b.changed() => r.map(|()| 1),
+                r = c.changed() => r.map(|()| 2),
+                r = d.changed() => r.map(|()| 3),
+            };
+            let Ok(woke) = woke else {
+                return None;
+            };
+            tokio::time::sleep(COALESCE).await;
+            // Collected in reverse, since `pending` is popped from the end.
+            for topic in Topic::ALL.iter().rev() {
+                let i = *topic as usize;
+                let rx = &mut conn.rx[i];
+                if i == woke || rx.has_changed().unwrap_or(false) {
+                    rx.mark_unchanged();
+                    conn.pending.push(*topic);
+                }
+            }
+        }
+        let topic = conn.pending.pop()?;
+        let data = {
+            let state = view::lock(&conn.app.state);
+            view::topic(&state, &conn.app.ctx, topic, SystemTime::now(), conn.tz)
+        };
+        let event = Event::default()
+            .event(topic.as_str())
+            .json_data(data)
+            .expect("JSON serializes");
+        Some((Ok(event), conn))
+    })
 }
 
 async fn api_status(Extract(app): Extract<AppState>) -> Response {
@@ -207,6 +296,7 @@ mod tests {
                 listen: "127.0.0.1:0".to_owned(),
                 stall_timeout: Duration::from_secs(900),
             }),
+            changes: Arc::new(Changes::default()),
         }
     }
 
@@ -240,9 +330,77 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn api_history_returns_every_part() {
+        let addr = spawn_server(test_app()).await;
+        let response = raw_request(addr, "GET", "/api/history?tz=-60").await;
+        assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+        let body = response.split("\r\n\r\n").nth(1).unwrap();
+        let json: serde_json::Value = serde_json::from_str(body).unwrap();
+        for key in [
+            "totals",
+            "positions",
+            "variants",
+            "problems",
+            "batches",
+            "lookup",
+        ] {
+            assert!(json.get(key).is_some(), "missing {key}");
+        }
+    }
+
+    /// Reads SSE event names from `reader` until `n` have arrived.
+    async fn read_events(
+        reader: &mut tokio::io::BufReader<tokio::net::TcpStream>,
+        n: usize,
+    ) -> Vec<String> {
+        use tokio::io::AsyncBufReadExt;
+        let mut names = Vec::new();
+        while names.len() < n {
+            let mut line = String::new();
+            let read = tokio::time::timeout(Duration::from_secs(5), reader.read_line(&mut line))
+                .await
+                .expect("event in time")
+                .unwrap();
+            assert!(read > 0, "stream closed");
+            if let Some(name) = line.trim_end().strip_prefix("event: ") {
+                names.push(name.to_owned());
+            }
+        }
+        names
+    }
+
+    #[tokio::test]
+    async fn api_events_sends_every_topic_then_changes() {
+        let app = test_app();
+        let changes = Arc::clone(&app.changes);
+        let addr = spawn_server(app).await;
+        let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+        stream
+            .write_all(b"GET /api/events HTTP/1.1\r\nHost: x\r\n\r\n")
+            .await
+            .unwrap();
+        let mut reader = tokio::io::BufReader::new(stream);
+        assert_eq!(
+            read_events(&mut reader, 4).await,
+            ["status", "live", "lookup", "charts"]
+        );
+        // A burst of changes to one topic is one event.
+        changes.bump(Topic::Live);
+        changes.bump(Topic::Live);
+        changes.bump(Topic::Charts);
+        assert_eq!(read_events(&mut reader, 2).await, ["live", "charts"]);
+    }
+
+    #[tokio::test]
     async fn known_paths_reject_other_methods_with_405() {
         let addr = spawn_server(test_app()).await;
-        for path in ["/api/status", "/metrics", "/healthz"] {
+        for path in [
+            "/api/status",
+            "/api/history",
+            "/api/events",
+            "/metrics",
+            "/healthz",
+        ] {
             let response = raw_request(addr, "POST", path).await;
             assert!(response.starts_with("HTTP/1.1 405"), "{path}: {response}");
         }

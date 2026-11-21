@@ -14,11 +14,12 @@ use fishnet_monitor::{
     config::Config,
     history::ProblemLevel,
     http::{self, AppState},
-    parser::parse_line,
+    parser::{Event, Level, parse_line},
     snapshot,
     state::{Alert, State, StatusContext},
     stats_file,
     supervisor::{self, ChildEvent, ChildSpec},
+    view::{Changes, Topic},
     webhook::{self, Delivery},
 };
 use tokio::sync::mpsc;
@@ -104,6 +105,7 @@ fn run(command: Vec<String>) -> ExitCode {
 
 async fn supervise(config: Config, command: Vec<String>) -> i32 {
     let state = Arc::new(Mutex::new(State::new(SystemTime::now())));
+    let changes = Arc::new(Changes::default());
     if let Some(path) = &config.history_file {
         let now = SystemTime::now();
         match snapshot::load(path, now) {
@@ -124,22 +126,35 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
     let (alert_tx, alert_rx) = mpsc::channel::<Alert>(16);
 
     let webhook = config.webhook_url.clone().map(|url| {
-        // The problems list arrives in phase 3; until then a final failure
-        // goes to our stderr in fishnet's warning format.
+        // A final failure goes to our stderr in fishnet's warning format and
+        // into the dashboard's problems list.
+        let state = Arc::clone(&state);
+        let changes = Arc::clone(&changes);
         tokio::spawn(webhook::run(
             url,
             config.host_name.clone(),
             Delivery::default(),
             alert_rx,
-            |msg| eprintln!("W: fishnet-monitor: {msg}"),
+            move |msg| {
+                let msg = format!("fishnet-monitor: {msg}");
+                eprintln!("W: {msg}");
+                state.lock().unwrap().history.record_problem(
+                    SystemTime::now(),
+                    ProblemLevel::W,
+                    &msg,
+                );
+                changes.bump(Topic::Live);
+            },
         ))
     });
 
     if let Some(path) = config.stats_file.clone() {
+        let changes = Arc::clone(&changes);
         tokio::spawn(stats_file::watch(
             path,
             STATS_POLL_INTERVAL,
             Arc::clone(&state),
+            move || changes.bump(Topic::Live),
         ));
     }
 
@@ -150,6 +165,7 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
             listen: config.listen.to_string(),
             stall_timeout: config.stall_timeout,
         }),
+        changes: Arc::clone(&changes),
     };
     let listen = config.listen;
     tokio::spawn(async move {
@@ -161,17 +177,25 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
     let stall = {
         let state = Arc::clone(&state);
         let alerts = alert_tx.clone();
+        let changes = Arc::clone(&changes);
         let timeout = config.stall_timeout;
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(STALL_CHECK_INTERVAL);
             loop {
                 tick.tick().await;
                 let now = SystemTime::now();
-                let alert = {
+                let (alert, new_minute) = {
                     let mut state = state.lock().unwrap();
-                    state.tick(now);
-                    state.check_stall(now, timeout)
+                    let new_minute = state.tick(now);
+                    (state.check_stall(now, timeout), new_minute)
                 };
+                if new_minute {
+                    // New chart point; "today" and the 24 h figures move on.
+                    changes.bump_all(&[Topic::Charts, Topic::Live, Topic::Lookup]);
+                }
+                if alert.is_some() {
+                    changes.bump(Topic::Status);
+                }
                 if let Some(alert) = alert {
                     let _ = alerts.try_send(alert);
                 }
@@ -196,7 +220,15 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
                     state.child_started(now);
                     None
                 }
-                ChildEvent::Line { line, .. } => state.apply_line(&parse_line(&line), now),
+                ChildEvent::Line { line, .. } => {
+                    let line = parse_line(&line);
+                    if matches!(line.event, Event::BatchFinished(_))
+                        || matches!(line.level, Level::Warning | Level::Error)
+                    {
+                        changes.bump(Topic::Live);
+                    }
+                    state.apply_line(&line, now)
+                }
                 ChildEvent::StopRequested => {
                     requested = true;
                     state.stop_requested();
@@ -205,7 +237,9 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
                 ChildEvent::Exited { code, .. } => state.child_exited(code, requested, now),
             }
         };
+        changes.bump(Topic::Status);
         if let Some(alert) = alert {
+            changes.bump(Topic::Live);
             let _ = alert_tx.try_send(alert);
         }
     }
