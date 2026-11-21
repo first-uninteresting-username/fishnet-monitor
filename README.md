@@ -45,10 +45,13 @@ devenv shell
 
 [Renovate](https://docs.renovatebot.com) (the hosted GitHub app) reads
 `renovate.json5`. A custom manager bumps the frontend libraries in
-`frontend/vendor.lock`. Hosted Renovate can't run commands, so after merging or
-checking out such a PR, run `scripts/vendor-frontend.sh --update` (`vendor-frontend
---update` in the devenv shell) to refresh the checksums and vendored files, and commit
-the result. `devenv.lock` is updated by `.github/workflows/update-devenv-lock.yml`.
+`frontend/vendor.lock`. Hosted Renovate can't run commands, so
+`.github/workflows/refresh-vendored-frontend.yml` finishes each of its PRs: it runs
+`scripts/vendor-frontend.sh --update` (new checksums and vendored files), rebuilds
+`frontend/styles.css`, and pushes a commit to the PR branch. Review that diff before
+merging. For a version change of your own, run `vendor-frontend --update` and
+`build-css` in the devenv shell. `devenv.lock` is updated by
+`.github/workflows/update-devenv-lock.yml`.
 
 ## Built with
 

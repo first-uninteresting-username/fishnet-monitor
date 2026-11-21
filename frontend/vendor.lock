@@ -1,7 +1,8 @@
 # Frontend libraries, vendored into frontend/vendor/ by scripts/vendor-frontend.sh.
-# Renovate bumps the versions (custom manager in renovate.json5) but can't
-# refresh the sums. After any version change (Renovate's or yours), run
-# `scripts/vendor-frontend.sh --update`, review the diff, and commit it.
+# Renovate bumps the versions (custom manager in renovate.json5); the
+# refresh-vendored-frontend workflow then runs `scripts/vendor-frontend.sh
+# --update` on its PRs. After a version change of your own, run that command,
+# review the diff, and commit it.
 #
 # file               package               version  path in package          sha256
 preact.mjs           preact                11.2.0   dist/preact.mjs          bdcbd9abdf2c77c5c45326eab42191e949222d479d0d5f69467387a77040cb55

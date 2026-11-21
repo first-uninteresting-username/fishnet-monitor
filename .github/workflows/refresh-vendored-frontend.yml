@@ -1,0 +1,63 @@
+name: Refresh vendored frontend
+
+# Renovate bumps versions in frontend/vendor.lock but can't run commands. This
+# finishes the job on its PRs: refresh the sums and vendored files, rebuild the
+# generated stylesheet (it inlines vendor/uplot.css), and push the result onto
+# the PR branch.
+
+on:
+  pull_request:
+    paths:
+      - frontend/vendor.lock
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-vendored-frontend-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    # Only Renovate's own branches in this repository: fork PRs get no write
+    # token, and a human's edit to the lock should be refreshed by hand.
+    if: >-
+      github.event.pull_request.user.login == 'renovate[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Refresh sums and vendored files
+        run: bash scripts/vendor-frontend.sh --update
+
+      - uses: cachix/install-nix-action@v31
+
+      - uses: cachix/cachix-action@v17
+        with:
+          name: devenv
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      # Same Tailwind as local development (pinned by devenv.lock).
+      - name: Rebuild frontend/styles.css
+        run: devenv shell -- build-css
+
+      - name: Commit and push
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git add frontend/vendor.lock frontend/vendor frontend/styles.css
+          if git diff --cached --quiet; then
+            echo "Nothing to refresh."
+            exit 0
+          fi
+          # This author is listed in gitIgnoredAuthors (renovate.json5), so
+          # Renovate doesn't treat the PR as hand-edited and keeps rebasing it.
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "chore(deps): refresh vendored frontend files"
+          git push origin "HEAD:refs/heads/$BRANCH"

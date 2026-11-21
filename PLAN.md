@@ -253,7 +253,7 @@ has no curl.
    `scripts/vendor-frontend.sh`: it reads pinned versions and SHA-256 sums from
    `frontend/vendor.lock`, downloads the ES module builds into `frontend/vendor/`,
    and fails on a checksum mismatch. Renovate bumps the versions through a custom
-   manager; run the script with `--update` to refresh sums and files. Test the UI with a fake-log mode
+   manager, and a workflow runs the script with `--update` on its PRs. Test the UI with a fake-log mode
    (`fishnet-monitor demo`) that replays the fixtures, so you can work on the UI
    without a real fishnet key. Then add the game lookup, the top-games panel and the
    titled/supporter counts, tested against a mock export endpoint (batching, 429

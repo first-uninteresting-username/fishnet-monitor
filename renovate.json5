@@ -12,6 +12,9 @@
     'helpers:pinGitHubActionDigests',
     'docker:pinDigests',
   ],
+  // .github/workflows/refresh-vendored-frontend.yml commits on top of Renovate's
+  // PRs; without this Renovate would treat them as edited and stop updating them.
+  gitIgnoredAuthors: ['41898282+github-actions[bot]@users.noreply.github.com'],
   customManagers: [
     {
       // frontend/vendor.lock: one line per vendored file,
