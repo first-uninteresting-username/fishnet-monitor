@@ -51,6 +51,7 @@ USER 10001:10001
 
 # Defaults that differ from upstream (see PLAN.md). Users can override them.
 ENV STATS_FILE=/data/fishnet-stats \
+    HISTORY_FILE=/data/history.json \
     MONITOR_LISTEN=0.0.0.0:9465 \
     STALL_TIMEOUT=15m
 

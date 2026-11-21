@@ -6,6 +6,7 @@ pub mod history;
 pub mod http;
 pub mod metrics;
 pub mod parser;
+pub mod snapshot;
 pub mod state;
 pub mod stats_file;
 pub mod supervisor;

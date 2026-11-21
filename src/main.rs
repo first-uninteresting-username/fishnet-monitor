@@ -12,8 +12,10 @@ use std::{
 
 use fishnet_monitor::{
     config::Config,
+    history::ProblemLevel,
     http::{self, AppState},
     parser::parse_line,
+    snapshot,
     state::{Alert, State, StatusContext},
     stats_file,
     supervisor::{self, ChildEvent, ChildSpec},
@@ -102,6 +104,23 @@ fn run(command: Vec<String>) -> ExitCode {
 
 async fn supervise(config: Config, command: Vec<String>) -> i32 {
     let state = Arc::new(Mutex::new(State::new(SystemTime::now())));
+    if let Some(path) = &config.history_file {
+        let now = SystemTime::now();
+        match snapshot::load(path, now) {
+            Ok(Some(history)) => state.lock().unwrap().history = history,
+            Ok(None) => {}
+            Err(err) => {
+                let msg = format!("fishnet-monitor: {err}");
+                eprintln!("W: {msg}");
+                state
+                    .lock()
+                    .unwrap()
+                    .history
+                    .record_problem(now, ProblemLevel::W, &msg);
+            }
+        }
+        tokio::spawn(snapshot::run(path.clone(), Arc::clone(&state)));
+    }
     let (alert_tx, alert_rx) = mpsc::channel::<Alert>(16);
 
     let webhook = config.webhook_url.clone().map(|url| {
@@ -203,8 +222,12 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
         }
     };
 
-    // Let a final fatal webhook go out before exiting.
+    // Save the history and let a final fatal webhook go out before exiting.
     stall.abort();
+    state.lock().unwrap().tick(SystemTime::now());
+    if let Some(path) = &config.history_file {
+        snapshot::save(path, &state).await;
+    }
     drop(alert_tx);
     if let Some(webhook) = webhook
         && tokio::time::timeout(WEBHOOK_DRAIN_TIMEOUT, webhook)

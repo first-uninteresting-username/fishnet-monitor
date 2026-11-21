@@ -23,6 +23,8 @@ pub struct Config {
     pub stats_file: Option<PathBuf>,
     /// `FORWARD_DEBUG=1` forwards fishnet's `D:` lines. Default off.
     pub forward_debug: bool,
+    /// `HISTORY_FILE`; unset or empty keeps the history in memory only.
+    pub history_file: Option<PathBuf>,
     /// `WEBHOOK_URL`; unset or empty disables webhooks.
     pub webhook_url: Option<String>,
     /// `MONITOR_HOST_NAME`, else `HOSTNAME`, else the content of
@@ -71,6 +73,7 @@ impl Config {
             listen,
             stall_timeout,
             stats_file: get("STATS_FILE").map(PathBuf::from),
+            history_file: get("HISTORY_FILE").map(PathBuf::from),
             forward_debug,
             webhook_url: get("WEBHOOK_URL"),
             host_name,
@@ -137,6 +140,7 @@ mod tests {
         assert_eq!(config.listen, "0.0.0.0:9465".parse().unwrap());
         assert_eq!(config.stall_timeout, Duration::from_secs(15 * 60));
         assert_eq!(config.stats_file, None);
+        assert_eq!(config.history_file, None);
         assert!(!config.forward_debug);
         assert_eq!(config.webhook_url, None);
         // The fallback chain ends in "unknown", so this is never empty.
@@ -150,6 +154,7 @@ mod tests {
             ("STALL_TIMEOUT", "90s"),
             ("STATS_FILE", "/var/lib/fishnet/stats.json"),
             ("FORWARD_DEBUG", "yes"),
+            ("HISTORY_FILE", "/data/history.json"),
             ("WEBHOOK_URL", "https://example.com/hook"),
             ("MONITOR_HOST_NAME", "box"),
             ("HOSTNAME", "ignored"),
@@ -163,6 +168,10 @@ mod tests {
             Some(PathBuf::from("/var/lib/fishnet/stats.json"))
         );
         assert!(config.forward_debug);
+        assert_eq!(
+            config.history_file,
+            Some(PathBuf::from("/data/history.json"))
+        );
         assert_eq!(
             config.webhook_url.as_deref(),
             Some("https://example.com/hook")
