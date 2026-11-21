@@ -12,18 +12,6 @@ import { Problems } from "./components/Problems.js";
 import { PlayerStats, TopGames } from "./components/Players.js";
 import { Batches } from "./components/Batches.js";
 
-function Footer() {
-  return html`<footer class="text-muted-foreground flex px-1 pt-2 flex-wrap gap-x-4.5 gap-y-1.5 text-xs [&_code]:font-mono">
-    <span>Reads fishnet's log and <code>/data/fishnet-stats</code>. Never shows your key.</span>
-    <span>
-      ${lookup.value.enabled
-        ? html`Player data from <code>lichess.org/api/games/export/_ids</code> (turn off with <code>GAME_LOOKUP=0</code>).`
-        : html`Game lookup is off (<code>GAME_LOOKUP=0</code>), so the player panels and columns are hidden.`}
-    </span>
-    <span><code>/metrics</code> · <code>/api/status</code> · <code>/healthz</code></span>
-  </footer>`;
-}
-
 // `top` is rendered above the header (the demo puts its controls there).
 export function App({ top }) {
   return html`<div class="mx-auto grid max-w-[1240px] gap-4 pt-4 pb-10 pr-[max(16px,env(safe-area-inset-right,0px))] pl-[max(16px,env(safe-area-inset-left,0px))]">
@@ -46,6 +34,5 @@ export function App({ top }) {
       </div>`}
       <${Batches} />
     </div>
-    <${Footer} />
   </div>`;
 }
