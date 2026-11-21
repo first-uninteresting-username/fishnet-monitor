@@ -9,8 +9,10 @@ dashboard**, built into the image, so seeing what the client does needs nothing 
 the container. Prometheus metrics are a secondary output for people who already run
 Prometheus. It should be usable as a drop-in replacement for `niklasf/fishnet:2`.
 
-Non-goals: changing fishnet's behaviour, forking its source, or talking to the lichess
-API ourselves.
+Non-goals: changing fishnet's behaviour, forking its source, or talking to the fishnet
+work API (`/fishnet/*`) ourselves. The only lichess call we make is a read-only lookup of
+public game data for the top-games list and the player counts (see
+[Game lookup](#game-lookup)), and it can be turned off.
 
 ## What we have to work with
 
@@ -48,6 +50,7 @@ container (uid 10001)
    │                  └─► forwarded to container stdout (unchanged, D: lines optional)
    ├─ watches $STATS_FILE (JSON) ──► metrics state
    ├─ history store (ring buffers, snapshotted to /data/history.json)
+   ├─ game lookup: batched game IDs ──► lichess.org/api/games/export/_ids ──► ratings
    └─ HTTP :9465
         /              dashboard (static HTML/JS/CSS embedded in the binary)
         /api/status    JSON snapshot of the current state
@@ -86,6 +89,10 @@ container (uid 10001)
 | `fishnet_engine_errors_total`, `fishnet_batches_aborted_total` | counter | `E:` / `W:` lines |
 | `fishnet_fatal` | gauge | "Stopping queue." line |
 | `fishnet_unparsed_lines_total` | counter | lines that match no parser, to spot format drift |
+| `fishnet_top_game_rating` | gauge | highest game rating seen so far (game lookup) |
+| `fishnet_game_lookups_total{result="ok\|missing\|error\|ratelimited"}` | counter | game lookup |
+| `fishnet_games_titled_total`, `fishnet_games_titled_by_title_total{title}` | counter | game lookup |
+| `fishnet_games_supporter_total` | counter | game lookup |
 
 ### Dashboard
 
@@ -96,6 +103,10 @@ The monitor has to keep history itself, because no Prometheus is assumed.
   idle seconds. About 10k rows, so it fits easily in memory.
 - The last 200 finished batches: time, game URL, variant, eval, knps/core.
 - The last 200 `W:`/`E:` lines.
+- The top 50 games by rating, all-time (see [Game lookup](#game-lookup)). This list is
+  not cut off after 7 days.
+- The per-minute buckets also count looked-up, titled and supporter games. All-time
+  totals for these (including one per title) are kept separately and never expire.
 - Snapshotted to `/data/history.json` every minute and on shutdown, so charts survive
   a restart. The volume and file format are ours; fishnet never touches them.
 
@@ -107,7 +118,13 @@ The monitor has to keep history itself, because no Prometheus is assumed.
 - **Charts:** positions per minute (1 h / 24 h / 7 d), knps/core over time, a timeline
   of busy vs idle periods, and batches by variant.
 - **Recent batches:** a list of the latest batches, each linking to the analysed game
-  on lichess.
+  on lichess, with the players' ratings once the lookup has them.
+- **Top games:** the highest-rated games this client has analysed, with a 24 h / 7 d /
+  all-time switch. Each row shows the rank, white and black with their ratings, the
+  game rating, the speed and variant, the date, and a link to the game.
+- **Titled players and supporters:** how many games had a titled player or a lichess
+  supporter, today and all-time, as a count and as a share of looked-up games, plus a
+  breakdown by title.
 - **Problems:** the latest warnings and errors, with fatal ones highlighted.
 - **Live updates:** the page loads `/api/status` and `/api/history` once, then follows
   `/api/events`. It doesn't poll.
@@ -119,13 +136,55 @@ modules and loaded through an import map, so there's no Node, bundler or
 updates a signal, and only the parts of the page that read it re-render. uPlot charts
 are wrapped in small components that call `setData` instead of re-rendering. The files
 are embedded in the binary (`rust-embed` or `include_str!`), so the image has no extra
-files. Dark and light themes follow `prefers-color-scheme`. If the UI ever outgrows
+files. Dark and light themes follow `prefers-color-scheme`. The palette is
+[`#14110f` `#34312d` `#7e7f83` `#d9c5b2`](https://coolors.co/14110f-34312d-7e7f83-d9c5b2):
+dark mode uses `#14110f` as the background and `#d9c5b2` as the accent, light mode uses
+a `#d9c5b2` tint as the background and `#34312d` as the accent, and `#7e7f83` marks idle
+state. Status colours (ok, warn, crit) are muted to match. If the UI ever outgrows
 this (TypeScript, several pages), the components move to Vite + JSX unchanged.
 
 **Security:** the dashboard is read-only and has no login. It never shows the fishnet
 key, and the key never goes into history, `/api/*` or the forwarded log. The listen
 address is configurable (`MONITOR_LISTEN`, default `0.0.0.0:9465`). Anyone exposing it
 beyond the LAN should put it behind a reverse proxy with auth; the README will say so.
+
+### Game lookup
+
+The top-games list and the titled/supporter counts need player data, and fishnet
+itself can't provide it. The work it gets from lichess has a `game_id` but no players,
+ratings or titles (`AcquireResponseBody` in `api.rs`). So the monitor looks the games up
+on the public lichess API.
+
+- **Game IDs:** taken from the batch-finished line. Its URL is `<endpoint>/<game_id>`.
+  Batches without a game (the line says `batch <id> finished`) can't be ranked and are
+  skipped.
+- **Lookup:** queue the IDs and send them every 60 s, or as soon as 300 are waiting, to
+  `POST https://lichess.org/api/games/export/_ids` (up to 300 IDs per request,
+  `Accept: application/x-ndjson`, `moves=false`, no auth). Only one request runs at a
+  time. On a 429 the monitor waits a full minute, as the lichess API docs ask. If a
+  request fails, the IDs go back into the queue and the queue is capped, so an outage
+  can't make it grow without limit. Games the API doesn't return (deleted, or a
+  different endpoint) are counted as `missing`.
+- **Game rating:** the average of both players' ratings at the time of the game
+  (decided; not the stronger player's rating). We also store both ratings, the speed, the
+  variant, whether the game was rated, and its date. Games against the computer or with
+  a side that has no rating are left out of the ranking.
+- **Titled games:** a game counts once if at least one player has a `title` (GM, IM,
+  FM, CM, NM, WGM, WIM, WFM, WCM, WNM, or LM, the Lichess Master title). `BOT` is also
+  a `title` value in the API, but bot accounts aren't titled players, so their games
+  are counted separately. Each title also gets its own counter. A GM-vs-IM game counts
+  for both, so the per-title counts can add up to more than the total.
+- **Supporter games:** a game counts once if at least one player has `patronColor` set,
+  which the API docs give as the sign of an active Patron. The older boolean `patron`
+  field is deprecated.
+- **Caveat:** the export shows a player's title and supporter status as of the lookup,
+  not as of the game. Because the lookup runs within a minute or two of the analysis,
+  the difference doesn't matter in practice.
+- **Settings:** `GAME_LOOKUP=0` turns it off; the dashboard then hides the top-games
+  and player panels and the player columns. `LICHESS_API` (default `https://lichess.org`) sets the host.
+  IDs from batches whose URL host doesn't match it are not looked up, so a dev
+  `ENDPOINT` doesn't send unrelated IDs to lichess.org.
+- **Demo mode** reads ratings from a fixture file and makes no network calls.
 
 ### Health
 
@@ -166,7 +225,10 @@ has no curl.
    and fails on a checksum mismatch. Renovate can't see these files, so bump the
    versions by hand and rerun the script. Test the UI with a fake-log mode
    (`fishnet-monitor demo`) that replays the fixtures, so you can work on the UI
-   without a real fishnet key.
+   without a real fishnet key. Then add the game lookup, the top-games panel and the
+   titled/supporter counts, tested against a mock export endpoint (batching, 429
+   backoff, missing games, games against the computer, bots, titled players on both
+   sides, supporters).
 4. **Image.** Dockerfile, healthcheck, defaults, `VOLUME /data`, README usage section
    (`docker run` and a NixOS `virtualisation.oci-containers` example with `KEY_FILE`).
 5. **CI.** GitHub Actions:
