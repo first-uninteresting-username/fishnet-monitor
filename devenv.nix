@@ -7,6 +7,7 @@ in {
     pkgs.cargo-nextest
     pkgs.curl # scripts/vendor-frontend.sh
     pkgs.miniserve # demo-ui
+    pkgs.python3 # scripts/mock-fishnet.py (smoke-test)
     pkgs.tailwindcss_4 # build-css: frontend/tailwind.css -> frontend/styles.css
   ];
 
@@ -29,6 +30,12 @@ in {
     # so the Rust and Docker builds need no Tailwind). `watch-css` rebuilds on save.
     build-css.exec = ''tailwindcss --cwd "$DEVENV_ROOT/frontend" -i tailwind.css -o styles.css --minify "$@"'';
     watch-css.exec = ''build-css --watch "$@"'';
+    # The CI smoke test against the host's podman (not part of devenv). The
+    # docker format keeps the HEALTHCHECK, which OCI images drop.
+    smoke-test.exec = ''
+      podman build --format docker -t localhost/fishnet-monitor:smoke "$DEVENV_ROOT" &&
+        CONTAINER=podman "$DEVENV_ROOT/scripts/smoke-test.sh" localhost/fishnet-monitor:smoke "$@"
+    '';
   };
 
   # Run by `devenv test` (also in the update-devenv-lock workflow).
