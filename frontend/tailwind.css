@@ -35,11 +35,11 @@
   --input: #d9c5b2;
   --ring: #34312d;
   /* Not in shadcn: status, the second engine (hce), player titles, sides. */
-  --ok: #3f7a4f;
-  --warn: #9a6a1c;
+  --ok: #356842;
+  --warn: #85571a;
   --crit: #b0402f;
-  --idle: #7e7f83;
-  --hce: #a07a52;
+  --idle: #636468; /* gray darkened for AA as text */
+  --hce: #7c5c3a;
   --title: #8b4a24;
   --side-w: #fbf8f5;
   --side-b: #34312d;
