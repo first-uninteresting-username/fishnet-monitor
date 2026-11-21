@@ -7,6 +7,12 @@
   example `systemctl` or `which`).
 - If you need something from outside the repository, ask the user first.
 
+## Don't write READMEs
+
+- Do not create or write README files (`README.md` or any other README),
+  including in subdirectories. Only edit an existing README if the user asks
+  for that change by name. Reading existing READMEs is fine.
+
 ## Commit your work
 
 - When you finish a task, commit your changes to git before reporting back.
