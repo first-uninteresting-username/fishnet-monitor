@@ -295,7 +295,7 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
   a new image.
 - **Dev env:** add Rust to `devenv.nix` (`languages.rust`, musl target). Don't install
   anything outside it.
-- **License:** GPL-3.0, already in `LICENSE`. That matches fishnet. The image gets OCI
+- **License:** AGPL-3.0-or-later, in `LICENSE`. It is compatible with fishnet's GPL-3.0. The image gets OCI
   labels pointing to both source repos.
 
 ## Phases

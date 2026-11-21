@@ -36,7 +36,7 @@ FROM docker.io/niklasf/fishnet:2@sha256:cfc5b999aa5e61ada4684023e44607723a4926c8
 LABEL org.opencontainers.image.title="fishnet-monitor" \
       org.opencontainers.image.description="Official lichess fishnet client with a built-in monitoring dashboard and Prometheus metrics" \
       org.opencontainers.image.source="https://github.com/first-uninteresting-username/fishnet-monitor" \
-      org.opencontainers.image.licenses="GPL-3.0-or-later" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.base.name="docker.io/niklasf/fishnet:2" \
       fishnet.upstream.source="https://github.com/lichess-org/fishnet"
 

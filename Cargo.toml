@@ -3,7 +3,7 @@ name = "fishnet-monitor"
 version = "0.1.0"
 edition = "2024"
 description = "Runs the lichess fishnet client and shows what it is doing"
-license = "GPL-3.0-or-later"
+license = "AGPL-3.0-or-later"
 repository = "https://github.com/first-uninteresting-username/fishnet-monitor"
 publish = false
 
