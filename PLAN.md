@@ -157,19 +157,31 @@ few base rules. The standalone Tailwind CLI (from nixpkgs, in devenv) compiles i
 and the output is committed so the Rust and Docker builds don't need Tailwind. UI
 elements are [shadcn/ui](https://ui.shadcn.com) components (Card, Button, Badge,
 Alert, Progress, Table, ToggleGroup, Empty), ported to htm in
-`frontend/src/components/ui/` with the upstream class strings; their helpers
-`clsx`, `tailwind-merge` and `class-variance-authority` are vendored like the rest.
-The palette below is mapped to shadcn's token names (`--background`, `--primary`,
-`--muted-foreground`, …) plus `--ok`, `--warn`, `--crit`, `--idle`, `--hce` and
-`--title`. Components use htm's tagged templates instead of JSX. Each SSE event
+`frontend/src/components/ui/` and restyled to [Material 3](https://m3.material.io):
+elevated cards for every panel and tile, segmented buttons (with a check on the
+selected segment) for the range and filter switches, full-round buttons with M3 state
+layers, banners for the stall / fatal / stale strips, a linear progress indicator,
+and M3's shape (4 / 8 / 12 / 16 / 28 px), elevation, type and easing tokens. Their
+helpers `clsx`, `tailwind-merge` and `class-variance-authority` are vendored like the
+rest. Icons and the logo are [Material Symbols](https://fonts.google.com/icons)
+(Rounded) inlined as SVG in `frontend/src/components/icons.js`; the logo is
+`phishing` (a fish hook) on primary-container, and `frontend/favicon.svg` is the same
+mark. Text uses Roboto / Roboto Mono when installed and the system font otherwise;
+no web font is fetched. The colour scheme is mapped to shadcn's token names
+(`--background` = surface, `--card` = surface-container-low, `--muted-foreground` =
+on-surface-variant, `--secondary` = secondary-container, …) plus `--ok`, `--warn`,
+`--crit`, `--idle`, `--hce` and `--title`. Components use htm's tagged templates instead of JSX. Each SSE event
 updates a signal, and only the parts of the page that read it re-render. uPlot charts
 are wrapped in small components that call `setData` instead of re-rendering. The files
 are embedded in the binary (`rust-embed` or `include_str!`), so the image has no extra
-files. Dark and light themes follow `prefers-color-scheme`. The palette is
+files. Dark and light themes follow `prefers-color-scheme`. The scheme is an M3
+tonal-spot scheme built from the palette
 [`#14110f` `#34312d` `#7e7f83` `#d9c5b2`](https://coolors.co/14110f-34312d-7e7f83-d9c5b2):
-dark mode uses `#14110f` as the background and `#d9c5b2` as the accent, light mode uses
-a `#d9c5b2` tint as the background and `#34312d` as the accent, and `#7e7f83` marks idle
-state. Status colours (ok, warn, crit) are muted to match. If the UI ever outgrows
+primary and secondary take the hue of `#7e7f83` (a slate blue), neutrals and tertiary
+take the hue of `#d9c5b2`, so surfaces stay warm, and roles use M3's tones (light:
+primary T40 on surface T98; dark: primary T80 on surface T6). Status colours (ok,
+warn, crit, idle) and the hce and title colours are custom colours at T40 / T80;
+all of them meet WCAG AA as text on every surface. If the UI ever outgrows
 this (TypeScript, several pages), the components move to Vite + JSX, and `ui/` can be
 replaced by the real shadcn/ui components.
 

@@ -6,9 +6,10 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { cn } from "../lib/utils.js";
 
-// Floating readout box, shared with the positions chart.
+// Floating readout box, shared with the positions chart: an M3 rich tooltip
+// (surface-container, medium shape, elevation 2).
 export const TIP =
-  "bg-popover text-popover-foreground pointer-events-none absolute z-10 grid gap-px rounded-md border px-2.5 py-1.5 text-xs whitespace-nowrap shadow-md";
+  "bg-popover text-popover-foreground pointer-events-none absolute z-10 grid gap-0.5 rounded-md px-3 py-2 text-xs whitespace-nowrap shadow-elevation-2";
 
 const H = 48;
 const PAD = { t: 6, b: 4, x: 4 };
@@ -86,7 +87,7 @@ export function Spark({ vals, format = String, label = "", hours = 24, color = "
   const tipX = ok ? Math.min(Math.max(x(cur), 46), w - 46) : 0;
 
   return html`<div
-    class="focus-visible:outline-ring relative -mx-1 mt-1 h-12 cursor-crosshair touch-pan-y rounded-md outline-offset-2 focus-visible:outline-2"
+    class="focus-visible:outline-ring relative -mx-1 mt-2 h-12 cursor-crosshair touch-pan-y rounded-md outline-offset-2 focus-visible:outline-2"
     ref=${box}
     tabindex=${ok ? 0 : -1}
     role="img"

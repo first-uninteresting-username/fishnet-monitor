@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+  <!-- Material Symbols "phishing" (Rounded, filled; Apache License 2.0) on the
+       primary colour (#3e5e98), the same glyph as the dashboard logo. -->
+  <rect y="-960" width="960" height="960" rx="216" fill="#3e5e98"/>
+  <path transform="translate(144 -130) scale(.7)" fill="#ffffff" d="M440-120q-100 0-170-70t-70-170v-192q0-14 12-19t22 5l138 138q11 11 11 27.5T372-372q-12 12-28.5 12T315-372l-35-35v47q0 66 47 113t113 47q66 0 113-47t47-113v-127q-36-14-58-44.5T520-600q0-38 22-68.5t58-44.5v-127q0-17 11.5-28.5T640-880q17 0 28.5 11.5T680-840v127q36 14 58 44.5t22 68.5q0 38-22 69t-58 44v127q0 100-70 170t-170 70Z"/>
+</svg>

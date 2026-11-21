@@ -1,12 +1,14 @@
 // Building blocks shared by the panels, made from the shadcn components in ui/.
 import { html } from "../html.js";
 import { cn } from "../lib/utils.js";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card.js";
 import { Empty as EmptyRoot, EmptyDescription, EmptyTitle } from "./ui/empty.js";
 import { ToggleGroup } from "./ui/toggle-group.js";
+import { PhishingIcon } from "./icons.js";
 
-// Segmented text buttons: a shadcn ToggleGroup sized for words, not icons.
-// `options`: [[value, label]].
-export const Seg = ({ item, ...props }) => html`<${ToggleGroup} item=${cn("h-7 flex-none px-2.5 text-xs", item)} ...${props} />`;
+// Segmented text buttons: an M3 segmented button (shadcn ToggleGroup) at
+// density -2 (32 px), sized for words, not icons. `options`: [[value, label]].
+export const Seg = ({ item, ...props }) => html`<${ToggleGroup} item=${cn("h-8 min-w-0 flex-none px-3 text-[13px]", item)} ...${props} />`;
 
 export function Empty({ title, children }) {
   return html`<${EmptyRoot} class="items-start gap-1 p-0 py-4 text-left md:p-0 md:py-4">
@@ -15,17 +17,17 @@ export function Empty({ title, children }) {
   <//>`;
 }
 
-// A section of the page: a hairline rule, a heading row, then the content.
-// No card chrome; the rules and the spacing carry the structure.
+// A section of the page: an M3 elevated card with a title-medium heading,
+// an optional hint (supporting text) and actions on the right.
 export function Panel({ title, hint, actions, class: cls, children }) {
-  return html`<section class=${cn("grid min-w-0 content-start gap-3 border-t pt-3", cls)}>
-    <header class="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1.5">
-      <h2 class="mr-auto text-sm font-semibold">${title}</h2>
-      ${hint != null && hint !== "" && html`<span class="text-muted-foreground text-xs tabular-nums">${hint}</span>`}
-      ${actions && html`<div class="flex flex-wrap items-center gap-2">${actions}</div>`}
-    </header>
-    <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-2.5">${children}</div>
-  </section>`;
+  return html`<${Card} class=${cn("min-w-0", cls)}>
+    <${CardHeader} class="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-2">
+      <${CardTitle} class="mr-auto"><h2>${title}</h2><//>
+      ${hint != null && hint !== "" && html`<${CardDescription} class="text-xs tabular-nums">${hint}<//>`}
+      ${actions && html`<${CardAction} class="flex flex-wrap items-center gap-2">${actions}<//>`}
+    <//>
+    <${CardContent} class="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3">${children}<//>
+  <//>`;
 }
 
 // Small print under a panel.
@@ -35,7 +37,7 @@ export const Note = ({ children }) => html`<div class="text-muted-foreground tex
 export const Legend = ({ items }) =>
   html`<div class="text-muted-foreground flex flex-wrap gap-x-3.5 gap-y-1.5 text-xs">
     ${items.map(
-      ([swatch, label]) => html`<span class="inline-flex items-center gap-1.5"><i class=${cn("size-2.5", swatch)}></i>${label}</span>`,
+      ([swatch, label]) => html`<span class="inline-flex items-center gap-1.5"><i class=${cn("size-2.5 rounded-full", swatch)}></i>${label}</span>`,
     )}
   </div>`;
 
@@ -43,19 +45,12 @@ export const Legend = ({ items }) =>
 export const Dot = ({ pulse, class: cls }) =>
   html`<span class=${cn("size-2 shrink-0 rounded-full bg-(--tone)", pulse && "motion-safe:animate-pulse", cls)}></span>`;
 
-export const Logo = () => html`<svg class="text-primary size-[30px] shrink-0" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-  <path d="M4 7 Q16 3 28 7 L25 26 Q16 29 7 26 Z" fill="none" />
-  <path d="M6 13 Q16 10 26.5 13 M7 19.5 Q16 17 25.5 19.5 M10 5.5 L12 27.5 M16 4.5 L16 28.5 M22 5.5 L20 27.5" />
-</svg>`;
-
-const icon = (paths) => () =>
-  html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${paths}</svg>`;
-
-export const ClockIcon = icon(html`<circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />`);
-export const AlertIcon = icon(html`<path d="M12 3 2 21h20L12 3Z" /><path d="M12 10v5M12 18v.5" />`);
-export const ReconnectIcon = icon(
-  html`<path d="M3 12a9 9 0 0 1 15.5-6.2M21 12a9 9 0 0 1-15.5 6.2" /><path d="M18 3v3h-3M6 21v-3h3" />`,
-);
+// The app icon: Material Symbols `phishing` (a fish hook) on primary-container,
+// in M3's large shape. frontend/favicon.svg is the same mark.
+export const Logo = () =>
+  html`<span class="bg-primary-container text-primary-container-foreground grid size-10 shrink-0 place-items-center rounded-lg">
+    <${PhishingIcon} />
+  </span>`;
 
 export function Wing({ label = true }) {
   return html`<svg class="text-primary h-2.5 w-3 shrink-0" viewBox="0 0 12 10" role=${label ? "img" : null} aria-label=${label ? "Lichess supporter" : null} aria-hidden=${label ? null : "true"}>
@@ -75,8 +70,8 @@ export function Bar({ label, pct, fill, n, share }) {
     )}
   >
     <span>${label}</span>
-    <div class="bg-muted h-2 overflow-hidden">
-      <div class=${cn("h-full min-w-0.5", fill)} style=${`width: ${pct.toFixed(2)}%`}></div>
+    <div class="bg-muted h-2 overflow-hidden rounded-full">
+      <div class=${cn("h-full min-w-1 rounded-full", fill)} style=${`width: ${pct.toFixed(2)}%`}></div>
     </div>
     <span class="text-muted-foreground text-right font-mono text-xs tabular-nums">${n}</span>
     ${share != null && html`<span class="text-right font-mono text-xs tabular-nums">${share}</span>`}
@@ -89,5 +84,5 @@ export function Bar({ label, pct, fill, n, share }) {
 export const cardsTable =
   "max-sm:block max-sm:[&_thead]:hidden max-sm:[&_tbody]:block max-sm:[&_tr]:grid max-sm:[&_tr]:grid-cols-[minmax(0,1fr)_auto] max-sm:[&_tr]:gap-x-3 max-sm:[&_tr]:gap-y-1.5 max-sm:[&_tr]:px-0.5 max-sm:[&_tr]:py-2.5 max-sm:[&_td]:block max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:whitespace-normal max-sm:[&_td[data-label]]:before:block max-sm:[&_td[data-label]]:before:font-sans max-sm:[&_td[data-label]]:before:text-[11px] max-sm:[&_td[data-label]]:before:font-normal max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]";
 
-// Table head cell: small, muted, normal case.
-export const headClass = "text-muted-foreground h-auto px-2 py-1.5 text-xs font-normal";
+// Table head cell: M3 label-medium, muted, normal case.
+export const headClass = "text-muted-foreground h-auto px-2 py-2 text-xs font-medium tracking-[0.04em]";

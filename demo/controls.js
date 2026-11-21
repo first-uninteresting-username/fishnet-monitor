@@ -12,7 +12,7 @@ const GROUPS = [
 export function DemoControls() {
   const d = demo.value;
   return html`<div
-    class="text-muted-foreground flex flex-wrap items-center gap-x-4.5 gap-y-2 rounded-xl border border-dashed px-3 py-2 text-xs"
+    class="text-muted-foreground bg-surface-container-high flex flex-wrap items-center gap-x-4.5 gap-y-2 rounded-lg px-4 py-3 text-xs"
     role="group"
     aria-label="Demo controls"
   >

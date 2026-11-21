@@ -1,8 +1,8 @@
 /* fishnet-monitor dashboard: Tailwind input. `build-css` compiles it to
    frontend/styles.css, which is generated: don't edit that file by hand.
    Components use utility classes; this file only holds the theme tokens
-   (shadcn/ui names, mapped to the palette in PLAN.md, "Dashboard") and a few
-   base rules. */
+   (shadcn/ui names mapped onto Material 3 colour roles, plus M3 shape,
+   elevation, type and motion tokens) and a few base rules. */
 @import "tailwindcss" source(none);
 @source "./src";
 @source "../demo";
@@ -10,117 +10,141 @@
 /* uPlot's own stylesheet, in a layer so the utilities can override it. */
 @import "./vendor/uplot.css" layer(base);
 
-/* Palette: coolors.co/14110f-34312d-7e7f83-d9c5b2
-   smoky black #14110f · black olive #34312d · gray #7e7f83 · dun #d9c5b2
-   Tints and shades are derived from those four; the status colours are tuned
-   to sit with them. Values stay hex: the chart reads them for its canvas. */
+/* Material 3 colour scheme (tonal-spot style; see PLAN.md, "Dashboard").
+   Core colours come from the palette coolors.co/14110f-34312d-7e7f83-d9c5b2:
+   primary and secondary take the hue of gray #7e7f83 (a slate blue), and the
+   neutrals and tertiary take the hue of dun #d9c5b2, so surfaces stay warm.
+   Roles use M3 tones (light: primary T40, surface T98, containers T90…;
+   dark: primary T80, surface T6, containers T30…). Status colours are custom
+   colours at T40 / T80, all WCAG AA as text on every surface.
+   shadcn name          → M3 role
+   background           → surface
+   card                 → surface-container-low
+   popover              → surface-container
+   muted                → surface-container-highest
+   muted-foreground     → on-surface-variant
+   secondary / accent   → secondary-container
+   border               → outline-variant
+   input                → outline
+   destructive          → error
+   Values stay hex: the chart reads them for its canvas. */
 :root {
-  --radius: 0.625rem;
-  --background: #f4eee8;
-  --foreground: #14110f;
-  --card: #fbf8f5;
-  --card-foreground: #14110f;
-  --popover: #ebe1d6;
-  --popover-foreground: #14110f;
-  --primary: #34312d;
-  --primary-foreground: #fbf8f5;
-  --secondary: #ebe1d6;
-  --secondary-foreground: #14110f;
-  --muted: #ebe1d6;
-  --muted-foreground: #5f6064; /* gray #7e7f83 darkened for AA contrast */
-  --accent: #e3d5c6;
-  --accent-foreground: #34312d;
-  --destructive: #b0402f;
-  --border: #d9c5b2;
-  --input: #d9c5b2;
-  --ring: #34312d;
+  --background: #fef8f3;
+  --foreground: #1f1b16;
+  --card: #f9f2ec;
+  --card-foreground: #1f1b16;
+  --popover: #f4ede6;
+  --popover-foreground: #1f1b16;
+  --surface-container-high: #eee7e1;
+  --primary: #3e5e98;
+  --primary-foreground: #ffffff;
+  --primary-container: #dae2fe;
+  --primary-container-foreground: #001b3b;
+  --secondary: #dae2fe;
+  --secondary-foreground: #101b31;
+  --muted: #e8e1db;
+  --muted-foreground: #4f453b;
+  --accent: #dae2fe;
+  --accent-foreground: #101b31;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --border: #d1c4b8;
+  --input: #81756a;
+  --ring: #3e5e98;
   /* Not in shadcn: status, the second engine (hce), player titles, sides. */
-  --ok: #356842;
-  --warn: #85571a;
-  --crit: #b0402f;
-  --idle: #636468; /* gray darkened for AA as text */
-  --hce: #7c5c3a;
-  --title: #8b4a24;
-  --side-w: #fbf8f5;
-  --side-b: #34312d;
+  --ok: #246b3a;
+  --warn: #8d4f06;
+  --crit: #b3261e;
+  --idle: #60636d;
+  --hce: #775936;
+  --title: #964820;
+  --side-w: #ffffff;
+  --side-b: #34302b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --background: #14110f;
-    --foreground: #f3ebe2;
-    --card: #201c19;
-    --card-foreground: #f3ebe2;
-    --popover: #2e2925;
-    --popover-foreground: #f3ebe2;
-    --primary: #d9c5b2;
-    --primary-foreground: #14110f;
-    --secondary: #2e2925;
-    --secondary-foreground: #f3ebe2;
-    --muted: #2e2925;
-    --muted-foreground: #aeafb3; /* gray #7e7f83 lightened for AA on dark */
-    --accent: #4a4139;
-    --accent-foreground: #f3ebe2;
-    --destructive: #e0735f;
-    --border: #4a4540;
-    --input: #5a544d;
-    --ring: #d9c5b2;
-    --ok: #86b38f;
-    --warn: #d9a55b;
-    --crit: #e0735f;
-    --idle: #8e8f93;
-    --hce: #b98a5e;
-    --title: #e39a68;
-    --side-w: #f3ebe2;
-    --side-b: #14110f;
+    --background: #18120c;
+    --foreground: #e8e1db;
+    --card: #1f1b16;
+    --card-foreground: #e8e1db;
+    --popover: #231f1a;
+    --popover-foreground: #e8e1db;
+    --surface-container-high: #2e2925;
+    --primary: #b1c5ff;
+    --primary-foreground: #023060;
+    --primary-container: #20467e;
+    --primary-container-foreground: #dae2fe;
+    --secondary: #3d465f;
+    --secondary-foreground: #dae2fe;
+    --muted: #39342f;
+    --muted-foreground: #d1c4b8;
+    --accent: #3d465f;
+    --accent-foreground: #dae2fe;
+    --destructive: #f2b8b5;
+    --destructive-foreground: #601410;
+    --border: #4f453b;
+    --input: #9b8f83;
+    --ring: #b1c5ff;
+    --ok: #8fd79e;
+    --warn: #ffb878;
+    --crit: #f2b8b5;
+    --idle: #9b9da8;
+    --hce: #d7b28c;
+    --title: #ffae86;
+    --side-w: #e8e1db;
+    --side-b: #18120c;
   }
 }
 
 /* Same as the block above, for a forced dark theme. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --background: #14110f;
-  --foreground: #f3ebe2;
-  --card: #201c19;
-  --card-foreground: #f3ebe2;
-  --popover: #2e2925;
-  --popover-foreground: #f3ebe2;
-  --primary: #d9c5b2;
-  --primary-foreground: #14110f;
-  --secondary: #2e2925;
-  --secondary-foreground: #f3ebe2;
-  --muted: #2e2925;
-  --muted-foreground: #aeafb3; /* gray #7e7f83 lightened for AA on dark */
-  --accent: #4a4139;
-  --accent-foreground: #f3ebe2;
-  --destructive: #e0735f;
-  --border: #4a4540;
-  --input: #5a544d;
-  --ring: #d9c5b2;
-  --ok: #86b38f;
-  --warn: #d9a55b;
-  --crit: #e0735f;
-  --idle: #8e8f93;
-  --hce: #b98a5e;
-  --title: #e39a68;
-  --side-w: #f3ebe2;
-  --side-b: #14110f;
+  --background: #18120c;
+  --foreground: #e8e1db;
+  --card: #1f1b16;
+  --card-foreground: #e8e1db;
+  --popover: #231f1a;
+  --popover-foreground: #e8e1db;
+  --surface-container-high: #2e2925;
+  --primary: #b1c5ff;
+  --primary-foreground: #023060;
+  --primary-container: #20467e;
+  --primary-container-foreground: #dae2fe;
+  --secondary: #3d465f;
+  --secondary-foreground: #dae2fe;
+  --muted: #39342f;
+  --muted-foreground: #d1c4b8;
+  --accent: #3d465f;
+  --accent-foreground: #dae2fe;
+  --destructive: #f2b8b5;
+  --destructive-foreground: #601410;
+  --border: #4f453b;
+  --input: #9b8f83;
+  --ring: #b1c5ff;
+  --ok: #8fd79e;
+  --warn: #ffb878;
+  --crit: #f2b8b5;
+  --idle: #9b9da8;
+  --hce: #d7b28c;
+  --title: #ffae86;
+  --side-w: #e8e1db;
+  --side-b: #18120c;
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-surface-container-high: var(--surface-container-high);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-container: var(--primary-container);
+  --color-primary-container-foreground: var(--primary-container-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -128,6 +152,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -142,8 +167,28 @@
 }
 
 @theme {
+  /* M3 shape scale: extra-small, small, medium, large, extra-large. */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+
+  /* M3 elevation levels 1–3 (key + ambient shadow). */
+  --shadow-elevation-1: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --shadow-elevation-2: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 2px 6px 2px rgb(0 0 0 / 0.15);
+  --shadow-elevation-3: 0 4px 8px 3px rgb(0 0 0 / 0.15), 0 1px 3px 0 rgb(0 0 0 / 0.3);
+
+  /* Roboto when installed (Android, most Linux desktops), else the system UI
+     font. No web font is fetched: the dashboard makes no outside requests. */
+  --font-sans: "Roboto Flex", Roboto, "Google Sans Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* M3 motion: standard easing. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
   /* A new batch row lights up briefly. */
-  --animate-flash: flash 1.6s ease-out;
+  --animate-flash: flash 1.6s cubic-bezier(0.2, 0, 0, 1);
   @keyframes flash {
     from {
       background-color: var(--accent);
@@ -159,6 +204,6 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground text-sm;
+    @apply bg-background text-foreground font-sans text-sm tracking-[0.01786em];
   }
 }

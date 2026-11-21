@@ -109,7 +109,7 @@ export function TopGames() {
                 <${TableCell} class="max-sm:order-3 max-sm:col-span-full"><${Pair} game=${g} /><//>
                 <${TableCell} class="text-right max-sm:order-2"><span class=${RATING}>${fmt(g.rating)}</span><//>
                 <${TableCell} class="max-sm:order-4" data-label="Speed">
-                  <${Chip}>${g.speed}${g.variant && ` · ${g.variant}`}<//>
+                  <${Chip} class="grid">${g.speed}${g.variant && html`<span>${g.variant}</span>`}<//>
                 <//>
                 <${TableCell} class="font-mono tabular-nums max-sm:order-5 max-sm:text-right" data-label="Analysed">${when(g.at, t)}<//>
                 <${TableCell} class="max-sm:order-6" data-label="Game"><${GameLink} id=${g.id} title=${g.example && "Example ID, not a real game"} /><//>

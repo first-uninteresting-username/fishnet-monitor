@@ -16,7 +16,7 @@ import { TIP } from "./Spark.js";
 
 const RANGES = [["1h", "1 h"], ["6h", "6 h"], ["24h", "24 h"], ["7d", "7 d"]];
 const MIN_ZOOM_BUCKETS = 4;
-const FONT = '10px ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace';
+const FONT = '10px "Roboto Mono", ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace';
 
 // Indices of the buckets inside [t0, t1] (seconds); the whole series without a view.
 function visibleRange(d, view) {
@@ -303,7 +303,7 @@ export function PositionsChart() {
     title="Positions per minute"
     hint=${empty ? "" : summary(data, view.value)}
     actions=${html`
-      ${view.value && html`<${Button} variant="outline" size="sm" class="h-7 text-xs" onClick=${reset}>Reset zoom<//>`}
+      ${view.value && html`<${Button} variant="ghost" size="sm" class="text-[13px]" onClick=${reset}>Reset zoom<//>`}
       <${Seg} label="Range" options=${RANGES} value=${range.value} onChange=${pick} />
     `}
   >
