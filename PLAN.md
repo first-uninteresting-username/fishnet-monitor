@@ -243,7 +243,7 @@ on the public lichess API.
   and player panels and the player columns. `LICHESS_API` (default `https://lichess.org`) sets the host.
   IDs from batches whose URL host doesn't match it are not looked up, so a dev
   `ENDPOINT` doesn't send unrelated IDs to lichess.org.
-- **Demo mode** reads games from `tests/fixtures/games.ndjson` and makes no network
+- **Demo mode** reads games from `src/demo/games.ndjson` and makes no network
   calls.
 
 ### Health

@@ -3,10 +3,10 @@
 //!
 //! - The history starts with 7 weeks of generated data (charts, all-time
 //!   counts, top games), so every panel has something to show.
-//! - Then it prints the start-up lines of `tests/fixtures/normal.log` and,
+//! - Then it prints the start-up lines of `src/demo/normal.log` and,
 //!   every few seconds, a batch line for a game from
-//!   `tests/fixtures/games.ndjson`, plus the 2-minute summary, an idle spell
-//!   now and then and a warning from `tests/fixtures/problems.log`.
+//!   `src/demo/games.ndjson`, plus the 2-minute summary, an idle spell
+//!   now and then and a warning from `src/demo/problems.log`.
 //! - Every line goes through the parser and [`State`] like in `run`.
 //! - The game lookup answers from the same fixture file; no network calls.
 //!
@@ -28,9 +28,9 @@ use crate::{
     view::{Changes, Topic},
 };
 
-const STARTUP: &str = include_str!("../tests/fixtures/normal.log");
-const PROBLEMS: &str = include_str!("../tests/fixtures/problems.log");
-pub const GAMES: &str = include_str!("../tests/fixtures/games.ndjson");
+const STARTUP: &str = include_str!("demo/normal.log");
+const PROBLEMS: &str = include_str!("demo/problems.log");
+pub const GAMES: &str = include_str!("demo/games.ndjson");
 /// The demo's lichess, so the fixture games pass the lookup's host check.
 const API: &str = "https://lichess.org";
 

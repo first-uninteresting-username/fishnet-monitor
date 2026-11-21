@@ -1,4 +1,6 @@
-//! Runs the parser over the captured logs in `tests/fixtures/`. When a new
+//! Runs the parser over the captured logs in `tests/fixtures/`, plus
+//! `normal.log` and `problems.log`, which live in `src/demo/` because the
+//! demo embeds them and the image build only sees `src/`. When a new
 //! fishnet release changes its output, add a capture here and these tests
 //! show which lines no longer parse.
 
@@ -6,8 +8,9 @@ use std::{collections::BTreeMap, fs, time::Duration};
 
 use fishnet_monitor::parser::{BatchTarget, Eval, Event, Level, LogLine, Variant, parse_line};
 
-fn parse_fixture(name: &str) -> Vec<LogLine> {
-    let path = format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));
+/// Parses a log file; `path` is relative to the crate root.
+fn parse_fixture(path: &str) -> Vec<LogLine> {
+    let path = format!("{}/{path}", env!("CARGO_MANIFEST_DIR"));
     let text = fs::read_to_string(&path).unwrap_or_else(|err| panic!("{path}: {err}"));
     text.lines().map(parse_line).collect()
 }
@@ -46,7 +49,7 @@ fn unparsed(lines: &[LogLine]) -> Vec<&str> {
 
 #[test]
 fn normal_run() {
-    let lines = parse_fixture("normal.log");
+    let lines = parse_fixture("src/demo/normal.log");
     assert_eq!(unparsed(&lines), Vec::<&str>::new());
     expect(
         &lines,
@@ -87,7 +90,7 @@ fn normal_run() {
 
 #[test]
 fn verbose_run() {
-    let lines = parse_fixture("verbose.log");
+    let lines = parse_fixture("tests/fixtures/verbose.log");
     assert_eq!(unparsed(&lines), Vec::<&str>::new());
     expect(
         &lines,
@@ -137,7 +140,7 @@ fn verbose_run() {
 
 #[test]
 fn variants_hce_and_unknown_speed() {
-    let lines = parse_fixture("variants.log");
+    let lines = parse_fixture("tests/fixtures/variants.log");
     assert_eq!(unparsed(&lines), Vec::<&str>::new());
     let batches: Vec<_> = lines
         .iter()
@@ -184,7 +187,7 @@ fn variants_hce_and_unknown_speed() {
 
 #[test]
 fn problems() {
-    let lines = parse_fixture("problems.log");
+    let lines = parse_fixture("src/demo/problems.log");
     assert_eq!(unparsed(&lines), Vec::<&str>::new());
     expect(
         &lines,
@@ -210,7 +213,7 @@ fn problems() {
 
 #[test]
 fn panic() {
-    let lines = parse_fixture("panic.log");
+    let lines = parse_fixture("tests/fixtures/panic.log");
     assert_eq!(lines[1].event, Event::Panic);
     // The panic payload is free text and can't be recognised on its own.
     assert_eq!(
@@ -221,7 +224,7 @@ fn panic() {
 
 #[test]
 fn unknown_lines_are_tolerated() {
-    let lines = parse_fixture("unknown.log");
+    let lines = parse_fixture("tests/fixtures/unknown.log");
     assert_eq!(
         unparsed(&lines),
         [

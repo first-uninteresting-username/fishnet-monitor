@@ -1,5 +1,5 @@
 //! Game lookup against a mock lichess export endpoint on 127.0.0.1, with
-//! the games from `tests/fixtures/games.ndjson`: lichess exports
+//! the games from `src/demo/games.ndjson`: lichess exports
 //! (`/api/games/export/_ids`, NDJSON), also used by `fishnet-monitor demo`.
 //! The first five are the named cases below; the rest are generated, with
 //! made-up names.
@@ -24,7 +24,7 @@ use fishnet_monitor::{
     view::Changes,
 };
 
-const GAMES: &str = include_str!("fixtures/games.ndjson");
+const GAMES: &str = include_str!("../src/demo/games.ndjson");
 /// Fixture ids for the cases in `games.ndjson`.
 const TITLED_BOTH: &str = "HocfCBeq";
 const BOT: &str = "NdMNAdpc";
