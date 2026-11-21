@@ -313,8 +313,7 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    titled/supporter counts, tested against a mock export endpoint (batching, 429
    backoff, missing games, games against the computer, bots, titled players on both
    sides, supporters).
-4. **Image.** Dockerfile, healthcheck, defaults, `VOLUME /data`, README usage section
-   (`docker run` and a NixOS `virtualisation.oci-containers` example with `KEY_FILE`).
+4. **Image.** Dockerfile, healthcheck, defaults, `VOLUME /data`. No README changes.
    A first `Dockerfile` already exists (two stages, pinned digests, OCI labels, `/data`
    owned by 10001, `ENV` defaults, `HEALTHCHECK`, the monitor as `ENTRYPOINT`). What's
    left, in order:
@@ -329,35 +328,19 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
       `"$@"`), then have `run` add `-v` to the child's arguments when the variable is
       set, and add it to `Config` with a test. Default stays off.
    3. **Stopping.** `docker stop` sends SIGTERM, which makes fishnet drop its current
-      batches at once; that's what upstream does too, so keep it. Document
-      `--stop-signal SIGINT --stop-timeout 60` (and `StopSignal`/`TimeoutStopSec` for
-      NixOS) for a graceful stop that finishes the batches first. Check that the
+      batches at once; that's what upstream does too, so keep it. Note in a
+      `Dockerfile` comment that `--stop-signal SIGINT --stop-timeout 60` gives a
+      graceful stop that finishes the batches first. Check that the
       monitor still writes the history snapshot when the child exits on SIGTERM.
    4. **Volume permissions.** A named volume inherits `/data`'s owner (10001). A bind
       mount doesn't: if the host directory isn't writable by 10001, fishnet can't write
       the stats file and the snapshot fails. Make the monitor say so once at startup
-      (a `W:` line naming the path and the uid), and document `chown 10001:10001` or
-      `--user`.
-   5. **Check the image by hand** (needs a container runtime; devenv has none, so add
-      `pkgs.podman` or use the host's, after asking):
-      - `docker build .` on amd64, plus one arm64 build under QEMU, since the builder
-        doesn't cross-compile.
-      - the binary is static (`file` / `ldd`), and the image grows only by its size.
-      - `docker run <image> demo` serves the dashboard on 9465 with no key.
-      - `docker run -e KEY=dummy <image>` against a dead `ENDPOINT`: fishnet's error
-        lines show up in the problems panel, `/healthz` and the `HEALTHCHECK` status
-        follow, and `docker stop` exits with fishnet's code.
-      - `KEY_FILE` from a mounted secret works, and the key doesn't appear in
-        `/api/status`, `/api/history`, `/api/events`, `/metrics` or the forwarded log.
-      - history and stats survive `docker rm` + `run` on the same volume.
-      These steps become the CI smoke test in phase 5.
-   6. **`hadolint`** passes (the pre-commit hook already runs it).
-   7. **README usage section:** `docker run` with a named volume and `-p 9465:9465`, a
-      NixOS `virtualisation.oci-containers` example with `KEY_FILE` from a secret
-      (sops-nix or agenix), the full env-var table (upstream's plus ours), the stop
-      signal note, and the reverse-proxy warning from [Security](#dashboard).
-      `AGENTS.md` only allows editing the README when asked, so this step waits for an
-      explicit go-ahead.
+      (a `W:` line naming the path and the uid), so the cause is in the log.
+   5. **`hadolint`** passes (the pre-commit hook already runs it).
+
+   The image isn't tested by hand in this phase; the checks below are phase 5's smoke
+   test. A local build, when one is needed, uses the host's podman (`podman build .`),
+   not a runtime added to devenv.
 
    Decisions this phase settles: verbose stays off by default, and the port stays 9465
    unless it collides with something on the host (see the open questions). The image
@@ -367,7 +350,15 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    - build the image, multi-arch amd64/arm64 like upstream
    - a smoke test: start the container with a dummy key against a mock `ENDPOINT` and
      check that `/`, `/api/status` and `/metrics` respond and the startup lines get
-     parsed
+     parsed. It also covers what phase 4 leaves untested:
+     - the binary is static and the image grows only by its size
+     - `<image> demo` serves the dashboard on 9465 with no key
+     - fishnet's errors reach the problems list, `/healthz` and the `HEALTHCHECK`
+       status follow, and stopping the container exits with fishnet's code
+     - `KEY_FILE` from a mounted file works, and the key appears nowhere in
+       `/api/*`, `/metrics` or the forwarded log
+     - history and stats survive removing and re-creating the container on the same
+       volume
    - publish to GHCR
    - rerun the fixture tests on every Renovate base-image bump
 
