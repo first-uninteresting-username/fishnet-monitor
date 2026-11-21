@@ -7,6 +7,17 @@
   example `systemctl` or `which`).
 - If you need something from outside the repository, ask the user first.
 
+## Commit your work
+
+- When you finish a task, commit your changes to git before reporting back.
+  Keep each commit focused on one logical change, with a clear message that
+  says what changed and why.
+- Do not leave finished work uncommitted in the working tree.
+- Do not add co-author or attribution footers (such as `Co-Authored-By`
+  lines) to commit messages or PR bodies.
+- Do not commit secrets or local config files (for example `.env` or
+  `.claude/settings.local.json`).
+
 ## Frontend styling
 
 - Style the dashboard with Tailwind CSS utility classes only. Don't write CSS
