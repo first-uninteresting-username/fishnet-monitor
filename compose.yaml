@@ -1,0 +1,45 @@
+# Production: the published image running the real fishnet client.
+#
+#   echo 'KEY=your-fishnet-key' > .env
+#   docker compose up -d
+#
+# Development: the image built from this checkout, running the demo (a fake
+# fishnet, no key and no network needed). Naming the service turns on its
+# profile, so it never starts with a plain `docker compose up`.
+#
+#   docker compose up --build dev
+#
+# The dashboard is on http://localhost:9465 for either.
+
+services:
+  fishnet:
+    # :edge follows main; pin a sha-<short> tag to stay on one build.
+    image: ghcr.io/first-uninteresting-username/fishnet-monitor:edge
+    restart: unless-stopped
+    environment:
+      # Your fishnet key from https://lichess.org/get-fishnet. Every other
+      # upstream variable (CORES, USER_BACKLOG, ...) works here too.
+      KEY: ${KEY:-}
+      CORES: ${CORES:-auto}
+      # Optional: push notifications (ntfy, Slack-compatible, ...).
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+    ports:
+      - "${MONITOR_PORT:-9465}:9465"
+    volumes:
+      # Fishnet's stats file and the dashboard history.
+      - fishnet-data:/data
+    # SIGINT lets fishnet finish its current batches before it exits (SIGTERM
+    # would drop them); after the grace period it gets killed anyway.
+    stop_signal: SIGINT
+    stop_grace_period: 60s
+
+  dev:
+    profiles: [dev]
+    build: .
+    image: localhost/fishnet-monitor:dev
+    command: ["demo"]
+    ports:
+      - "${MONITOR_PORT:-9465}:9465"
+
+volumes:
+  fishnet-data:

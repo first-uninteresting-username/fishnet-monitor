@@ -21,21 +21,64 @@ Fishnet Monitor is a container image that runs the official Fishnet client and w
 
 ## Usage
 
-Open the dashboard, wherever it is deployed on.
+You need a fishnet key from <https://lichess.org/get-fishnet> and Docker (or
+Podman) with Compose. Put the key in a `.env` file next to `compose.yaml`:
 
-That's it.
+```bash
+echo 'KEY=your-fishnet-key' > .env
+docker compose up -d
+```
+
+Open the dashboard on <http://localhost:9465>. Prometheus metrics are on
+`/metrics`.
+
+Optional settings for `.env`:
+
+| Variable       | Default | Meaning                                          |
+| -------------- | ------- | ------------------------------------------------ |
+| `CORES`        | `auto`  | Cores fishnet may use                            |
+| `MONITOR_PORT` | `9465`  | Host port of the dashboard                       |
+| `WEBHOOK_URL`  | unset   | Endpoint for push notifications (ntfy, Slack, …) |
+
+The stats and the chart history live in the `fishnet-data` volume, so they survive
+updates. To update to the newest image:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+`docker compose down` stops fishnet gracefully: it finishes its current batches
+first (up to 60 seconds).
 
 ## Running locally
 
 This project uses [devenv](https://devenv.sh) for its development environment.
 
 ```bash
-git clone https://github.com/first-uninteresting-username/<repo>
-cd <repo>
+git clone https://github.com/first-uninteresting-username/fishnet-monitor
+cd fishnet-monitor
 devenv shell
 ```
 
-<!-- Add the exact commands to build/run, required env vars (with example values), and any system dependencies. -->
+Inside the shell:
+
+| Command       | What it does                                                         |
+| ------------- | -------------------------------------------------------------------- |
+| `demo`        | Dashboard with a fake fishnet on <http://localhost:9465>, no key     |
+| `demo-ui`     | Frontend only, with mock data, on <http://localhost:8080/demo/>      |
+| `watch-css`   | Rebuilds `frontend/styles.css` while you edit classes                |
+| `devenv test` | fmt, clippy and the tests                                            |
+| `smoke-test`  | Builds the image with Podman and runs `scripts/smoke-test.sh`        |
+
+To try the image built from your checkout, start the `dev` service. It runs the
+demo, so it needs no key:
+
+```bash
+docker compose up --build dev
+```
+
+The dashboard is on <http://localhost:9465> again. Stop the production service
+first if it is running, since both use the same port (or set `MONITOR_PORT`).
 
 ## Dependency updates
 
