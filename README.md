@@ -1,16 +1,13 @@
-# template
+# Fishnet Monitor
 
-<!-- One sentence: what this is, written for someone who has never heard of it. -->
+Dashboard for Lichess Fishnet, made in material styling language.
 
-A template repository
+![Screenshot of the dashboard](https://cdn.hackclub.com/01a1ffda-6af2-7876-97a8-6b6e77dc5b0f/fishnet-dashboard-dark.png)
 
-<!-- Hero screenshot / GIF / photo of the project in action. -->
-
-![screenshot](docs/screenshot.png)
-
-**[Try it here](https://example.com)** <!-- Live demo link: not the repo, not localhost. -->
+**[Demo](https://first-uninteresting-username.github.io/fishnet-monitor/demo/)**
 
 ## About
+
 
 <!--
 - What is it and what does it do?
@@ -19,15 +16,15 @@ A template repository
 
 ## Features
 
-<!-- 3–7 specific bullets a reviewer could verify in the demo. -->
-
--
--
--
+- AIO OCI image
+- Familiar UI
+- Clear metrics
 
 ## Usage
 
-<!-- How someone uses the project once it's running. Include controls for games. -->
+Open the dashboard, wherever it is deployed on.
+
+That's it.
 
 ## Running locally
 
@@ -55,23 +52,22 @@ merging. For a version change of your own, run `vendor-frontend --update` and
 
 ## Built with
 
-<!-- Languages, frameworks, libraries, tools. -->
-
--
+- Preact
+- htm
+- Tailwind CSS
+- Shadcn UI
+- Material styling
 
 ## How it works
 
-<!-- A paragraph or two on interesting technical decisions and trade-offs, problems you hit and how you fixed them. -->
+The monitoring proccess runs as PID 1 inside the container and starts upstream `/docker-entrypoint.sh` as a child process and reads its logs.
 
 ## AI usage
 
-<!-- Be honest: what (if anything) AI was used for, and roughly how much. -->
-
 - `AGENTS.md` is AI written
+- The whole project, except for the README is AI made
 
 ## Credits
-
-<!-- People who helped, libraries you leaned on, asset packs you used. -->
 
 - [fishnet](https://github.com/lichess-org/fishnet) by the lichess.org team
   (GPL-3.0-or-later). The Docker image is built on the upstream
