@@ -1,5 +1,8 @@
 //! Game lookup against a mock lichess export endpoint on 127.0.0.1, with
-//! the games from `tests/fixtures/games.ndjson`.
+//! the games from `tests/fixtures/games.ndjson`: lichess exports
+//! (`/api/games/export/_ids`, NDJSON), also used by `fishnet-monitor demo`.
+//! The first five are the named cases below; the rest are generated, with
+//! made-up names.
 
 use std::{
     collections::HashMap,

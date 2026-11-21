@@ -10,7 +10,6 @@ fishnet output that `tests/fixtures.rs` runs through the parser.
 | `problems.log` | Warnings and errors, engine timeouts and crashes, an aborted batch, the rejection and fatal stop |
 | `panic.log` | A Rust panic (missing key file) |
 | `unknown.log` | Lines the parser must tolerate: changed formats and new messages |
-| `games.ndjson` | lichess game exports (`/api/games/export/_ids`, NDJSON) for the game-lookup tests and `fishnet-monitor demo`. The first five are the named cases in `tests/lookup.rs` (GM vs IM with a supporter, a bot, a game against the computer, an anonymous side, two supporters); the rest are generated, with made-up names. |
 
 ## Where they come from
 
