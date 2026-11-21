@@ -11,3 +11,6 @@ signals-core.mjs     @preact/signals-core  1.14.5   dist/signals-core.mjs    0c8
 signals.mjs          @preact/signals       2.11.4   dist/signals.mjs         ba8177597f45acaca4d05dcf3966b527d0a8264cfa2b0a87ace92dff324217f8
 uplot.mjs            uplot                 1.6.32   dist/uPlot.esm.js        5dd9b3281aa64b461b42d9945f6adb2649d346502b12281a9ae0d46599a80eba
 uplot.css            uplot                 1.6.32   dist/uPlot.min.css       df630c6a8d6f8eeaff264b50f73ce5b114f646ffd9a0bb74f049b0a00135fa04
+clsx.mjs             clsx                  2.1.1    dist/clsx.mjs            d949e5cdbfebc76a6642b1901095e900fc3f2262d8dc0373aa44850a9bc75522
+tailwind-merge.mjs   tailwind-merge        3.7.1    dist/bundle-mjs.mjs      7ea8ce8f5d2edc5c615a0432406740d764b345455010d9352af77e9341e6c626
+cva.mjs              class-variance-authority 0.7.1 dist/index.mjs           3e9deb809896235089fd6719c56631f25bd67878100d5fa771a4864bfbd0e299
