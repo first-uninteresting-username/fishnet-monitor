@@ -332,7 +332,9 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    - **Stopping:** `docker stop` sends SIGTERM and fishnet drops its batches at once,
      like upstream. A `Dockerfile` comment gives `--stop-signal SIGINT
      --stop-timeout 60` for a graceful stop. `tests/shutdown.rs` checks that the
-     history snapshot is still saved on SIGTERM and the exit code is 143.
+     history snapshot is still saved on SIGTERM and the exit code is 143 for a child
+     killed by it. The real fishnet catches SIGTERM and exits 0, which the smoke
+     test in phase 5 checks.
    - **Volume permissions:** at startup the monitor probes the directories of
      `STATS_FILE` and `HISTORY_FILE` and logs one `W:` line (also in the problems
      list) per directory it can't write, naming the path, the uid and the `chown`
@@ -344,102 +346,71 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    runtime added to devenv. The port stays 9465. The container image is the only
    supported way to run the monitor, so the port is set by the image; checking that
    9465 is free on the host is left to whoever deploys it.
-5. **CI.** GitHub Actions, in one new workflow (`.github/workflows/ci.yml`) next to
-   the two that exist. It runs on pushes to `main`, on `v*` tags, on pull requests
-   (Renovate's included) and by hand. What's left, in order:
-   1. **Tests.** One job runs `devenv test` through the same Nix, cachix and devenv
-      steps as `update-devenv-lock.yml`, so CI runs exactly what runs locally:
-      `cargo fmt --check`, clippy with `-D warnings`, and nextest. Check whether
-      `devenv test` also runs the git hooks. If it does, CI gets hadolint, actionlint
-      and the `build-css` hook for free, and a stale `frontend/styles.css` fails the
-      job. If it doesn't, add `git diff --exit-code frontend/styles.css` after a
-      `build-css`.
-   2. **Mock fishnet server.** `scripts/mock-fishnet.py` (Python standard library
-      only, so it runs on the runner as-is and locally after adding `pkgs.python3` to
-      devenv). It implements just the parts of the fishnet work API that the client
-      calls, taken from `api.rs` in upstream (read it first, at the version the
-      pinned image ships):
-      - the key check accepts one known key and rejects any other;
-      - `acquire` hands out **one** small analysis job (start position, a few moves,
-        a low node count, so it finishes in seconds on a runner), then answers
-        "no work", so fishnet goes idle;
-      - the analysis submit accepts the result and records that it arrived;
-      - a `fatal` mode (switched over a control path) answers `acquire` with the
-        response that makes fishnet log "Client update or reconfiguration might be
-        required. Stopping queue." Check in `api.rs`/`queue.rs` which status code
-        that is, and whether fishnet then exits or keeps running.
-      This gives the smoke test a real batch-finished line, a real stats-file update
-      and a real idle line, all from the fishnet that's actually in the image. The
-      mock is test code. It doesn't change the non-goal: the monitor itself still
-      never talks to `/fishnet/*`.
-   3. **Smoke test.** `scripts/smoke-test.sh <image>`, a bash script that CI and a
-      local podman both run (`CONTAINER=podman`). It starts the mock on the host, and
-      the containers reach it through `--add-host=host.docker.internal:host-gateway`.
-      Every check prints what it expected and what it got, and on failure the script
-      dumps `docker logs` and the mock's log. The checks:
-      - **Static and small:** `docker create` + `docker cp` the binary out; `file`
-        says statically linked. The image's size minus the base image's size is at
-        most the binary's size plus 64 KiB (for `/data` and the layer metadata).
-      - **Demo:** `<image> demo` with no key or volume: `/` returns the page,
-        `/api/status` is JSON, `/metrics` has `fishnet_up`, `/healthz` is 200.
-      - **Real run:** a named volume, the key in a file mounted read-only as
-        `KEY_FILE`, `ENDPOINT` set to the mock, `GAME_LOOKUP=0` (the lookup is
-        covered by `tests/lookup.rs` and must not reach lichess.org from CI), and
-        `--health-interval 5s` so health shows up quickly. Wait (up to 2 min) until
-        the mock has the analysis back, then check:
-        `fishnet_batches_total 1`, the batch in `/api/status`'s recent batches,
-        state `idle`, `/healthz` 200, `docker inspect` health `healthy`.
-      - **Format drift:** `fishnet_unparsed_lines_total` is 0, and
-        `docker logs | fishnet-monitor parse` exits 0, so a line from a newer
-        fishnet that the parser doesn't know fails CI and shows up in the log.
-      - **No key leak:** the key string doesn't appear in `/api/status`,
-        `/api/history`, three seconds of `/api/events`, `/metrics` or `docker logs`.
-      - **Fatal:** switch the mock to fatal mode. The fatal line shows up in
-        `/api/status`'s problems, `/healthz` turns 503 and the health status turns
-        `unhealthy`. `docker stop` then gives the exit code that fishnet's own
-        behaviour predicts (143 if it's still running and gets SIGTERM, fishnet's
-        own code if it already exited); `docker wait` checks it.
-      - **Restart:** `docker rm`, then start a new container on the same volume.
-        `fishnet_batches_total` is still 1 (from the stats file) and `/api/history`
-        still holds the batch from the first container (from the snapshot).
-   4. **Image build.** A matrix job per architecture on native runners
-      (`ubuntu-24.04` and `ubuntu-24.04-arm`; free for public repositories). No
-      QEMU: the builder doesn't cross-compile, and an LTO release build of
-      tokio/axum/reqwest under emulation would take far longer. Each job builds with
-      `docker/build-push-action` (`load: true`, layer cache `type=gha` per arch),
-      runs the smoke test on its own image, and only then pushes it **by digest**
-      (not on pull requests). A final job joins both digests into one multi-arch
-      manifest with `docker buildx imagetools create` and applies the tags. The
-      `RUN --mount=type=cache` cargo caches don't survive between runners; that's
-      accepted, because the layer cache already skips the build when `src/`,
-      `frontend/` and the lock file haven't changed.
-   5. **Publish to GHCR.** `ghcr.io/${{ github.repository }}`, pushed with
-      `GITHUB_TOKEN` and `packages: write` on the publish jobs only (the test job
-      gets `contents: read`). Tags come from `docker/metadata-action`:
-      - every push to `main`: `edge` and `sha-<short>`;
-      - a `v1.2.3` tag: `1.2.3`, `1.2`, `1` and `latest`.
-      `metadata-action` also fills `org.opencontainers.image.version`, `.revision`
-      and `.created`, which the `Dockerfile` doesn't set. The build keeps buildx's
-      default provenance attestation. No signing for now.
-   6. **Renovate base-image bumps.** The digest PR for `niklasf/fishnet:2` runs the
-      whole workflow, so the smoke test, and with it the format-drift check, runs
-      against the new fishnet before the PR can merge. This replaces "rerun the
-      fixture tests": the fixtures are hand-written and don't change when upstream
-      does, but the smoke test's log comes from the new client. When the drift
-      check fails, capture the new lines into `tests/fixtures/` (see its README)
-      and fix the parser in the same PR. Renovate's `docker` manager already
-      covers both `FROM` lines; no config change is needed unless automerge is
-      wanted later.
-   7. **Branch protection:** make the test and smoke-test jobs required checks on
-      `main`. That's a repository setting, not a file, so it waits for the user.
-
-   No README changes in this phase. `actionlint` (already a pre-commit hook) has to
-   pass on the new workflow.
-
-   Decisions this phase settles: arm64 is built natively, not under QEMU, and the
-   smoke test replaces the manual image checks. The image is
-   `ghcr.io/first-uninteresting-username/fishnet-monitor` (taken from the repository
-   name, so nothing is hard-coded), and `latest` only moves on a release tag.
+5. **CI.** *(Done.)* One workflow, `.github/workflows/ci.yml`, next to the two that
+   exist. It runs on pushes to `main`, on `v*` tags, on pull requests (Renovate's
+   included) and by hand.
+   - **Tests:** `devenv test`, through the same Nix, cachix and devenv steps as
+     `update-devenv-lock.yml`. It runs fmt, clippy with `-D warnings`, nextest and all
+     the git hooks (hadolint, actionlint, `build-css`, …); a following
+     `git diff --exit-code` fails the job when `frontend/styles.css` is stale.
+   - **Mock fishnet server:** `scripts/mock-fishnet.py` (Python standard library),
+     written from `api.rs` and `queue.rs` in upstream v2.15.1. It answers the key
+     check, the queue status (with an old `oldest`, so a derived backlog never makes
+     fishnet wait), one small analysis job on the first `acquire` and "no work"
+     (204) after that, the analysis submit and aborts, and it receives the webhooks.
+     After `POST /_mock/fatal`, `acquire` answers 400 with an error body, which
+     fishnet logs as "Server rejected request" and "Stopping queue." before it stops.
+     `GET /_mock/state` shows what arrived. The mock is test code; the monitor itself
+     still never talks to `/fishnet/*`.
+   - **Smoke test:** `scripts/smoke-test.sh <image>` (docker, or `CONTAINER=podman`);
+     locally `devenv shell smoke-test` builds with the host's podman and runs it. The
+     containers reach the mock on the host through `--add-host
+     host.docker.internal:host-gateway`. On a failure it dumps the container and mock
+     logs. It checks:
+     - the binary has no program interpreter (static), and the image is at most the
+       binary's size plus 64 KiB bigger than the base image
+     - `demo` with no key serves `/`, `/api/status`, `/metrics` and `/healthz`, and
+       exits 0 on `docker stop` (it ignored SIGTERM as PID 1 before; fixed)
+     - a real run with `KEY_FILE` mounted read-only, `GAME_LOOKUP=0` and one core:
+       fishnet analyses the job, `fishnet_batches_total` is 1, the batch is in
+       `/api/history`, `/healthz` is 200 and the `HEALTHCHECK` says healthy
+     - **format drift:** `fishnet_unparsed_lines_total` is 0 and
+       `fishnet-monitor parse` accepts the whole container log
+     - the key appears nowhere in `/api/status`, `/api/history`, `/api/events`,
+       `/metrics`, the log, the webhooks or the saved history
+     - **stall:** with no more work fishnet prints nothing, so after `STALL_TIMEOUT`
+       (45 s here) `/healthz` turns 503, the `HEALTHCHECK` unhealthy, and one `stall`
+       webhook arrives
+     - `docker stop`: fishnet handles SIGTERM itself ("Stopping now.") and exits 0,
+       which the monitor passes on
+     - a new container on the same volume still counts the batch (stats file) and
+       still lists it (history snapshot)
+     - **fatal:** the rejected `acquire` makes fishnet stop its queue and exit 0 on
+       its own; the container exits, a `fatal` webhook arrives, and the fatal line is
+       in the problems list of the saved history
+     The health checks run with `--health-interval 3s --health-retries 1
+     --health-start-period 1s`; `0s` would mean "inherit the image's 2 minutes", in
+     which failures don't count. With podman, the image must be built with
+     `--format docker`, because the OCI format drops the `HEALTHCHECK`.
+   - **Image build:** a matrix job on native `ubuntu-24.04` and `ubuntu-24.04-arm`
+     runners (no QEMU). Each builds with `docker/build-push-action` (`load: true`,
+     `type=gha` cache per arch), runs the smoke test on its image, and on `main` or a
+     `v*` tag pushes it by digest; the second build is a cache hit. The `RUN
+     --mount=type=cache` cargo caches don't survive between runners, which is
+     accepted.
+   - **Publish:** a final job joins the digests into one multi-arch manifest on
+     `ghcr.io/first-uninteresting-username/fishnet-monitor` with `docker buildx
+     imagetools create`, using `GITHUB_TOKEN` (`packages: write` only on the image
+     jobs). Tags from `docker/metadata-action`: `edge` and `sha-<short>` from `main`;
+     `1.2.3`, `1.2`, `1` and `latest` from a `v1.2.3` tag. The images carry
+     `org.opencontainers.image.version` and `.revision`; the other labels stay the
+     `Dockerfile`'s. No signing.
+   - **Renovate base-image bumps** run the whole workflow, so the format-drift check
+     sees the new fishnet's real output before the PR merges. When it fails, capture
+     the new lines into `tests/fixtures/` (see its README) and fix the parser in the
+     same PR. Renovate's config needed no change.
+   - **Branch protection** (the `test` and `image` jobs as required checks on `main`)
+     is a repository setting and is left to the user.
 
 ## Decisions
 
