@@ -11,3 +11,6 @@ devenv.local.yaml
 
 # Playwright MCP screenshots and snapshots
 .playwright-mcp/
+
+# Rust
+/target
