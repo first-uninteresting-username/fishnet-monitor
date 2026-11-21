@@ -15,7 +15,7 @@ export const sinceActivity = computed(() => {
 export const stopped = computed(() => ["stopped", "fatal"].includes(client.value.state));
 
 export const quiet = computed(
-  () => client.value.state === "running" && sinceActivity.value != null && sinceActivity.value >= QUIET_AFTER,
+  () => ["starting", "running"].includes(client.value.state) && sinceActivity.value != null && sinceActivity.value >= QUIET_AFTER,
 );
 
 export const stalled = computed(() => quiet.value && sinceActivity.value >= client.value.stallTimeout);
@@ -35,6 +35,9 @@ export const health = computed(() => {
 export const badge = computed(() => {
   const c = client.value;
   switch (c.state) {
+    case "starting":
+      if (stalled.value) return { text: "Stalled", tone: "crit" };
+      return { text: "Starting", tone: "idle", pulse: true };
     case "running":
       if (stalled.value) return { text: "Stalled", tone: "crit" };
       if (quiet.value) return { text: "Running · quiet", tone: "warn" };
@@ -45,7 +48,9 @@ export const badge = computed(() => {
       return { text: `Stopping · finishing ${c.stoppingBatches} batches`, tone: "warn", pulse: true };
     case "stopped":
       return { text: "Stopped", tone: "idle" };
-    default:
+    case "fatal":
       return { text: "Fatal", tone: "crit" };
+    default:
+      return { text: c.state, tone: "idle" };
   }
 });

@@ -232,10 +232,6 @@ mod tests {
         response
     }
 
-    // The handlers for the three GET routes call State::status/health and
-    // render, which are still todo!(), so these tests only use paths that
-    // never reach a handler body.
-
     #[tokio::test]
     async fn unknown_path_is_404() {
         let addr = spawn_server(test_app()).await;

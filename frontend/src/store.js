@@ -12,7 +12,7 @@ export const conn = signal({ state: "live", attempt: 0, since: null });
 export const client = signal({
   host: "",
   listen: "",
-  state: "running", // running | idle | stopping | stopped | fatal
+  state: "running", // starting | running | idle | stopping | stopped | fatal
   version: null, // from the 2-minute summary line
   cores: null,
   queue: null, // pending batches; needs FISHNET_VERBOSE=1
