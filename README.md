@@ -18,41 +18,38 @@ Fishnet Monitor is a container image that runs the official Fishnet client and w
 - AIO OCI image
 - Familiar UI
 - Clear metrics
+- Prometheus metrics
 
 ## Usage
 
-You need a fishnet key from <https://lichess.org/get-fishnet> and Docker (or
-Podman) with Compose. Put the key in a `.env` file next to `compose.yaml`:
+Get a fishnet key from <https://lichess.org/get-fishnet>, put it in `.env` and
+start it:
 
 ```bash
 echo 'KEY=your-fishnet-key' > .env
 docker compose up -d
 ```
 
-Open the dashboard on <http://localhost:9465>. Prometheus metrics are on
-`/metrics`.
+The dashboard is at <http://localhost:9465> and Prometheus metrics are at `/metrics`.
 
-Optional settings for `.env`:
+Other things you can set in `.env`:
 
-| Variable       | Default | Meaning                                          |
-| -------------- | ------- | ------------------------------------------------ |
-| `CORES`        | `auto`  | Cores fishnet may use                            |
-| `MONITOR_PORT` | `9465`  | Host port of the dashboard                       |
-| `WEBHOOK_URL`  | unset   | Endpoint for push notifications (ntfy, Slack, …) |
+- `CORES` - how many cores fishnet gets (default `auto`)
+- `MONITOR_PORT` - dashboard port (default `9465`)
+- `WEBHOOK_URL` - where to send notifications, e.g. ntfy or Slack
 
-The stats and the chart history live in the `fishnet-data` volume, so they survive
-updates. To update to the newest image:
+Stats and chart history are kept in the `fishnet-data` volume. To update:
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-`docker compose down` stops fishnet gracefully: it finishes its current batches
-first (up to 60 seconds).
+`docker compose down` lets fishnet finish its current batches before it stops
+(60 seconds max).
 
 ## Running locally
 
-This project uses [devenv](https://devenv.sh) for its development environment.
+You need [devenv](https://devenv.sh).
 
 ```bash
 git clone https://github.com/first-uninteresting-username/fishnet-monitor
@@ -60,37 +57,17 @@ cd fishnet-monitor
 devenv shell
 ```
 
-Inside the shell:
+Then:
 
-| Command       | What it does                                                         |
-| ------------- | -------------------------------------------------------------------- |
-| `demo`        | Dashboard with a fake fishnet on <http://localhost:9465>, no key     |
-| `demo-ui`     | Frontend only, with mock data, on <http://localhost:8080/demo/>      |
-| `watch-css`   | Rebuilds `frontend/styles.css` while you edit classes                |
-| `devenv test` | fmt, clippy and the tests                                            |
-| `smoke-test`  | Builds the image with Podman and runs `scripts/smoke-test.sh`        |
+- `demo` - the dashboard with a fake fishnet, no key needed
+- `demo-ui` - just the frontend with mock data, on <http://localhost:8080/demo/>
+- `watch-css` - rebuild the CSS while editing
+- `devenv test` - fmt, clippy and tests
+- `smoke-test` - build the image with Podman and smoke test it
 
-To try the image built from your checkout, start the `dev` service. It runs the
-demo, so it needs no key:
-
-```bash
-docker compose up --build dev
-```
-
-The dashboard is on <http://localhost:9465> again. Stop the production service
-first if it is running, since both use the same port (or set `MONITOR_PORT`).
-
-## Dependency updates
-
-[Renovate](https://docs.renovatebot.com) (the hosted GitHub app) reads
-`renovate.json5`. A custom manager bumps the frontend libraries and the Roboto Flex
-font in `frontend/vendor.lock`. Hosted Renovate can't run commands, so
-`.github/workflows/refresh-vendored-frontend.yml` finishes each of its PRs: it runs
-`scripts/vendor-frontend.sh --update` (new checksums and vendored files), rebuilds
-`frontend/styles.css`, and pushes a commit to the PR branch. Review that diff before
-merging. For a version change of your own, run `vendor-frontend --update` and
-`build-css` in the devenv shell. `devenv.lock` is updated by
-`.github/workflows/update-devenv-lock.yml`.
+To try the image from your checkout, run `docker compose up --build dev`. It
+runs the demo too, so no key. It uses the same port as the normal service, so
+stop that one first or change `MONITOR_PORT`.
 
 ## Built with
 
@@ -112,11 +89,11 @@ The monitoring proccess runs as PID 1 inside the container and starts upstream `
 ## Credits
 
 - [fishnet](https://github.com/lichess-org/fishnet) by the lichess.org team
-  (GPL-3.0-or-later). The Docker image is built on the upstream
-  [`niklasf/fishnet`](https://hub.docker.com/r/niklasf/fishnet) image, which
-  bundles [Stockfish](https://github.com/official-stockfish/Stockfish) and
+  (GPL-3.0-or-later). The image is based on
+  [`niklasf/fishnet`](https://hub.docker.com/r/niklasf/fishnet), which includes
+  [Stockfish](https://github.com/official-stockfish/Stockfish) and
   [Fairy-Stockfish](https://github.com/fairy-stockfish/Fairy-Stockfish) (both GPL-3.0).
-  Game details come from the [Lichess API](https://lichess.org/api).
+- Game info comes from the [Lichess API](https://lichess.org/api).
 
 Vendored into `frontend/vendor/` (versions in `frontend/vendor.lock`):
 
@@ -134,11 +111,11 @@ Also used:
 
 - [Material Symbols](https://github.com/google/material-design-icons) by Google
   (Apache-2.0) for the icons and favicon
-- [shadcn/ui](https://ui.shadcn.com) (MIT): the components in
-  `frontend/src/components/ui/` are ports of it, styled after
+- [shadcn/ui](https://ui.shadcn.com) (MIT), components ported to
+  `frontend/src/components/ui/` and restyled to look like
   [Material 3](https://m3.material.io)
-- [Tailwind CSS](https://tailwindcss.com) (MIT), which generates `frontend/styles.css`
-- The Rust crates listed in `Cargo.toml`, among them
+- [Tailwind CSS](https://tailwindcss.com) (MIT)
+- Rust crates from `Cargo.toml`, like
   [axum](https://github.com/tokio-rs/axum), [tokio](https://tokio.rs),
   [reqwest](https://github.com/seanmonstar/reqwest) and [serde](https://serde.rs)
   (MIT / Apache-2.0)
