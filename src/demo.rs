@@ -27,6 +27,7 @@ use crate::{
     state::{State, StatusContext, Totals},
     view::{Changes, Topic},
 };
+use tokio::signal::unix::SignalKind;
 
 const STARTUP: &str = include_str!("demo/normal.log");
 const PROBLEMS: &str = include_str!("demo/problems.log");
@@ -341,9 +342,19 @@ async fn demo(config: Config) -> ExitCode {
         });
     }
 
+    // As PID 1 in a container nothing stops us by default, so SIGTERM
+    // (`docker stop`) has to be handled like Ctrl-C.
+    let mut sigterm = match tokio::signal::unix::signal(SignalKind::terminate()) {
+        Ok(signal) => signal,
+        Err(err) => {
+            eprintln!("fishnet-monitor: can't handle SIGTERM: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
     tokio::select! {
         () = fake_fishnet(&state, &changes, rng) => {}
         _ = tokio::signal::ctrl_c() => {}
+        _ = sigterm.recv() => {}
     }
     ExitCode::SUCCESS
 }
