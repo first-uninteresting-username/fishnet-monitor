@@ -263,7 +263,7 @@ impl State {
             Event::Idle { wait } => {
                 // mark_activity clears idle_until, so set it after.
                 self.mark_activity(now);
-                self.idle_until = Some(now + *wait);
+                self.idle_until = now.checked_add(*wait);
                 self.move_to(RunState::Idle, &ACTIVE_STATES);
             }
             Event::Fatal | Event::Panic => return self.become_fatal(line, now),
