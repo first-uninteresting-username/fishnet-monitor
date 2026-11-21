@@ -31,6 +31,7 @@ usage: fishnet-monitor <command>
 commands:
   run [--] CMD...  run CMD (the fishnet entrypoint) and monitor it
   healthcheck      exit 0 if the monitor on MONITOR_LISTEN reports healthy
+  demo             serve the dashboard with a fake fishnet (no key, no network)
   parse [FILE]   parse fishnet log lines from FILE (or stdin) and print the
                  events, to check the parser against real output";
 
@@ -46,6 +47,10 @@ fn main() -> ExitCode {
             run(command.to_vec())
         }
         Some("healthcheck") => healthcheck(),
+        Some("demo") => match config() {
+            Ok(config) => fishnet_monitor::demo::run(config),
+            Err(code) => code,
+        },
         Some("parse") => parse(args.get(1).map(String::as_str)),
         Some("-h" | "--help") => {
             println!("{USAGE}");
