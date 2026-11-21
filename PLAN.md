@@ -166,8 +166,11 @@ helpers `clsx`, `tailwind-merge` and `class-variance-authority` are vendored lik
 rest. Icons and the logo are [Material Symbols](https://fonts.google.com/icons)
 (Rounded) inlined as SVG in `frontend/src/components/icons.js`; the logo is
 `phishing` (a fish hook) on primary-container, and `frontend/favicon.svg` is the same
-mark. Text uses Roboto / Roboto Mono when installed and the system font otherwise;
-no web font is fetched. The colour scheme is mapped to shadcn's token names
+mark. Text is set in Roboto Flex, vendored like the libraries (from
+`@fontsource-variable/roboto-flex`: the weight axis only, as two `woff2` files for
+Latin and Latin Extended, ~57 KB together, SIL OFL 1.1) and served with the page, so
+it looks the same everywhere and makes no outside request. Mono text uses Roboto
+Mono when installed. The colour scheme is mapped to shadcn's token names
 (`--background` = surface, `--card` = surface-container-low, `--muted-foreground` =
 on-surface-variant, `--secondary` = secondary-container, …) plus `--ok`, `--warn`,
 `--crit`, `--idle`, `--hce` and `--title`. Components use htm's tagged templates instead of JSX. Each SSE event

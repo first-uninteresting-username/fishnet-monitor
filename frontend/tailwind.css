@@ -10,6 +10,31 @@
 /* uPlot's own stylesheet, in a layer so the utilities can override it. */
 @import "./vendor/uplot.css" layer(base);
 
+/* Roboto Flex, vendored (frontend/vendor.lock; SIL OFL 1.1, see
+   vendor/roboto-flex-LICENSE.txt). Only the weight axis, split like Fontsource
+   does: the browser fetches latin-ext only when a page needs those glyphs.
+   Anything outside both ranges falls back to the system font. */
+@font-face {
+  font-family: "Roboto Flex";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url("./vendor/roboto-flex-latin-wght.woff2") format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Roboto Flex";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url("./vendor/roboto-flex-latin-ext-wght.woff2") format("woff2-variations");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 /* Material 3 colour scheme (tonal-spot style; see PLAN.md, "Dashboard").
    Core colours come from the palette coolors.co/14110f-34312d-7e7f83-d9c5b2:
    primary and secondary take the hue of gray #7e7f83 (a slate blue), and the
@@ -179,9 +204,9 @@
   --shadow-elevation-2: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 2px 6px 2px rgb(0 0 0 / 0.15);
   --shadow-elevation-3: 0 4px 8px 3px rgb(0 0 0 / 0.15), 0 1px 3px 0 rgb(0 0 0 / 0.3);
 
-  /* Roboto when installed (Android, most Linux desktops), else the system UI
-     font. No web font is fetched: the dashboard makes no outside requests. */
-  --font-sans: "Roboto Flex", Roboto, "Google Sans Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Roboto Flex is vendored (see @font-face above) and served with the page,
+     so it needs no outside request. Mono text uses Roboto Mono when installed. */
+  --font-sans: "Roboto Flex", Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
 
   /* M3 motion: standard easing. */

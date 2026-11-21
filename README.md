@@ -44,8 +44,8 @@ devenv shell
 ## Dependency updates
 
 [Renovate](https://docs.renovatebot.com) (the hosted GitHub app) reads
-`renovate.json5`. A custom manager bumps the frontend libraries in
-`frontend/vendor.lock`. Hosted Renovate can't run commands, so
+`renovate.json5`. A custom manager bumps the frontend libraries and the Roboto Flex
+font in `frontend/vendor.lock`. Hosted Renovate can't run commands, so
 `.github/workflows/refresh-vendored-frontend.yml` finishes each of its PRs: it runs
 `scripts/vendor-frontend.sh --update` (new checksums and vendored files), rebuilds
 `frontend/styles.css`, and pushes a commit to the PR branch. Review that diff before

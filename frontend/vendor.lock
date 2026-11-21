@@ -15,3 +15,8 @@ uplot.css            uplot                 1.6.32   dist/uPlot.min.css       df6
 clsx.mjs             clsx                  2.1.1    dist/clsx.mjs            d949e5cdbfebc76a6642b1901095e900fc3f2262d8dc0373aa44850a9bc75522
 tailwind-merge.mjs   tailwind-merge        3.7.1    dist/bundle-mjs.mjs      7ea8ce8f5d2edc5c615a0432406740d764b345455010d9352af77e9341e6c626
 cva.mjs              class-variance-authority 0.7.1 dist/index.mjs           3e9deb809896235089fd6719c56631f25bd67878100d5fa771a4864bfbd0e299
+# Roboto Flex (variable weight axis only; latin + latin-ext), used by
+# frontend/tailwind.css. SIL Open Font License 1.1: the license ships with it.
+roboto-flex-latin-wght.woff2      @fontsource-variable/roboto-flex 5.3.0 files/roboto-flex-latin-wght-normal.woff2      8aabd65a22003f488ba7d2da8a8155a7f90e195ab2a11cd006615d00a0ee5eff
+roboto-flex-latin-ext-wght.woff2  @fontsource-variable/roboto-flex 5.3.0 files/roboto-flex-latin-ext-wght-normal.woff2  860475bc6d859474547084d6b7ab158d2c6a107b024abe7d9831faf968e9ec83
+roboto-flex-LICENSE.txt           @fontsource-variable/roboto-flex 5.3.0 LICENSE                                        9d1e34d7081410f85bc1bf4805ce076a16fb1a2306661aef9a7bee72fffb5e23
