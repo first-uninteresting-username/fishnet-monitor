@@ -111,21 +111,39 @@ The monitor has to keep history itself, because no Prometheus is assumed.
   a restart. The volume and file format are ours; fishnet never touches them.
 
 **Page** (one screen, works on a phone)
-- **Header:** state badge (running / idle / stopping / stopped / fatal), fishnet
-  version, cores, uptime, time since the last batch.
-- **Stat tiles:** batches, positions and nodes today and all-time, current knps/core,
-  NNUE nps.
-- **Charts:** positions per minute (1 h / 24 h / 7 d), knps/core over time, a timeline
-  of busy vs idle periods, and batches by variant.
+- **Header:** state badge (running / idle / stopping / stopped / fatal), health,
+  fishnet version, cores, uptime, time since the last batch.
+- **Stall warning:** after 3 minutes with no batch and no idle line, a strip under the
+  header counts down to `STALL_TIMEOUT`, so a stuck client shows before `/healthz`
+  turns unhealthy.
+- **Stale data:** when fishnet isn't running or the page loses `/api/events`, the
+  tiles and panels are dimmed and a strip says how old the data is (and that the page
+  is reconnecting).
+- **Stat tiles:** batches, positions and nodes today and all-time, current knps/core
+  with the 24 h average split by engine (nnue / hce), NNUE nps.
+- **Charts:** positions per minute (1 h / 6 h / 24 h / 7 d), full width and interactive:
+  a hover/keyboard tooltip with the value and how it compares to the average, drag to
+  zoom, double-click or Esc to reset, idle stretches shaded, and avg / peak / idle time
+  for the visible window. Idle stretches and stopped periods are shaded in this chart,
+  so there's no separate busy/idle timeline. Batches by variant use a linear scale with
+  each variant's share. No separate knps/core chart; speed stays in the stat tile.
 - **Recent batches:** a list of the latest batches, each linking to the analysed game
   on lichess, with the players' ratings once the lookup has them.
 - **Top games:** the highest-rated games this client has analysed, with a 24 h / 7 d /
   all-time switch. Each row shows the rank, white and black with their ratings, the
-  game rating, the speed and variant, the date, and a link to the game.
+  game rating, the speed and variant, the date, and a link to the game. A status line
+  shows whether the game lookup is working or rate-limited (with the wait), how many
+  games are queued, and how many lichess couldn't find.
 - **Titled players and supporters:** how many games had a titled player or a lichess
   supporter, today and all-time, as a count and as a share of looked-up games, plus a
   breakdown by title.
-- **Problems:** the latest warnings and errors, with fatal ones highlighted.
+- **Problems:** the latest warnings and errors, with fatal ones highlighted. Lines that
+  differ only in numbers are grouped with a count and first/last seen, and an
+  errors / warnings filter.
+- **Phones:** tables turn into stacked cards below ~600 px instead of scrolling sideways.
+- **Empty states:** on first start every panel says what will appear and when (for
+  example the version waits for the first 2-minute summary). With `GAME_LOOKUP=0` the
+  player panels and columns are hidden.
 - **Live updates:** the page loads `/api/status` and `/api/history` once, then follows
   `/api/events`. It doesn't poll.
 

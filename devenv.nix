@@ -5,6 +5,8 @@ in {
   packages = [
     pkgs.git
     pkgs.cargo-nextest
+    pkgs.curl # scripts/vendor-frontend.sh
+    pkgs.miniserve # demo-ui
   ];
 
   languages.rust = {
@@ -19,6 +21,9 @@ in {
   scripts = {
     build-static.exec = ''cargo build --release --target "$MUSL_TARGET" "$@"'';
     demo.exec = ''cargo run -- demo "$@"'';
+    # The dashboard with mock data, no backend needed: http://localhost:8080/demo/
+    demo-ui.exec = ''miniserve --port 8080 --index index.html "$DEVENV_ROOT" "$@"'';
+    vendor-frontend.exec = ''"$DEVENV_ROOT/scripts/vendor-frontend.sh"'';
   };
 
   # Run by `devenv test` (also in the update-devenv-lock workflow).
@@ -30,6 +35,9 @@ in {
       cargo nextest run --no-tests=pass
     fi
   '';
+
+  # Vendored files must stay byte-identical to frontend/vendor.lock.
+  git-hooks.excludes = ["^frontend/vendor/"];
 
   git-hooks.hooks = {
     check-added-large-files.enable = true;

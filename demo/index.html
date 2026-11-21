@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>fishnet-monitor demo</title>
+  <!-- The real dashboard (frontend/) with mock data instead of the API.
+       ES modules don't load from file://, so serve the repo root: `demo-ui`. -->
+  <link rel="stylesheet" href="../frontend/vendor/uplot.css">
+  <link rel="stylesheet" href="../frontend/styles.css">
+  <style>
+    .demo {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px;
+      padding: 8px 12px; border: 1px dashed var(--line); border-radius: var(--radius);
+      color: var(--muted); font-size: 12px;
+    }
+    .demo strong { color: var(--fg); font-weight: 600; }
+    .demo .grp { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "preact": "../frontend/vendor/preact.mjs",
+        "preact/hooks": "../frontend/vendor/preact-hooks.mjs",
+        "htm": "../frontend/vendor/htm.mjs",
+        "@preact/signals-core": "../frontend/vendor/signals-core.mjs",
+        "@preact/signals": "../frontend/vendor/signals.mjs",
+        "uplot": "../frontend/vendor/uplot.mjs"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { render } from "preact";
+    import { html } from "../frontend/src/html.js";
+    import { App } from "../frontend/src/app.js";
+    import { DemoControls } from "./controls.js";
+    import { start } from "./mock.js";
+
+    start();
+    render(html`<${App} top=${html`<${DemoControls} />`} />`, document.getElementById("app"));
+  </script>
+</body>
+</html>
