@@ -8,11 +8,10 @@ Dashboard for Lichess Fishnet, made in material styling language.
 
 ## About
 
+Fishnet is a tool that lets you donate CPU time to Lichess for game analysis.
+It is fine, but there's no real way to see progress, other than one simple JSON file.
 
-<!--
-- What is it and what does it do?
-- Why did you make it? What problem does it solve for you?
--->
+Fishnet Monitor is a container image that runs the official Fishnet client and wraps it with a monitoring layer.
 
 ## Features
 
