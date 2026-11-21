@@ -8,9 +8,19 @@ repository = "https://github.com/first-uninteresting-username/fishnet-monitor"
 publish = false
 
 [dependencies]
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "json", "query"] }
+humantime = "2.4.0"
+libc = "0.2.191"
 regex = "1"
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "rustls"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "process", "signal", "io-util", "time", "sync", "net", "fs"] }
 
 [profile.release]
 lto = true
 codegen-units = 1
 strip = true
+
+[dev-dependencies]
+tempfile = "3.27.0"
