@@ -66,5 +66,12 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=2m --retries=3 \
 # exit code. CMD is the child it supervises, which is the upstream entrypoint,
 # so every upstream env var (KEY, KEY_FILE, CORES, ...) keeps working.
 # `docker run <image> demo` still reaches the other subcommands.
+#
+# Stopping: `docker stop` sends SIGTERM, which the monitor forwards. fishnet
+# then drops its current batches at once, like the upstream image does; the
+# monitor still saves the history before it exits. For a graceful stop that
+# finishes the batches first, run with
+#   --stop-signal SIGINT --stop-timeout 60
+# (a second SIGINT, or the SIGKILL after the timeout, aborts them).
 ENTRYPOINT ["fishnet-monitor"]
 CMD ["run", "--", "/docker-entrypoint.sh"]
