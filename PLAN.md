@@ -315,6 +315,53 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    sides, supporters).
 4. **Image.** Dockerfile, healthcheck, defaults, `VOLUME /data`, README usage section
    (`docker run` and a NixOS `virtualisation.oci-containers` example with `KEY_FILE`).
+   A first `Dockerfile` already exists (two stages, pinned digests, OCI labels, `/data`
+   owned by 10001, `ENV` defaults, `HEALTHCHECK`, the monitor as `ENTRYPOINT`). What's
+   left, in order:
+   1. **Fix the build.** `src/demo.rs` embeds `tests/fixtures/{normal,problems}.log` and
+      `games.ndjson` with `include_str!`, but `.dockerignore` and the builder stage only
+      let `Cargo.toml`, `Cargo.lock`, `build.rs`, `src/` and `frontend/` in, so
+      `docker build` fails. Move the three files the demo needs to `src/demo/`
+      (the tests then read them from there), or allow-list and copy just those three
+      files. Moving them is cleaner: the image build shouldn't depend on `tests/`.
+   2. **`FISHNET_VERBOSE=1`.** Not implemented yet. Read the upstream
+      `docker-entrypoint.sh` first to see how extra arguments reach fishnet (its
+      `"$@"`), then have `run` add `-v` to the child's arguments when the variable is
+      set, and add it to `Config` with a test. Default stays off.
+   3. **Stopping.** `docker stop` sends SIGTERM, which makes fishnet drop its current
+      batches at once; that's what upstream does too, so keep it. Document
+      `--stop-signal SIGINT --stop-timeout 60` (and `StopSignal`/`TimeoutStopSec` for
+      NixOS) for a graceful stop that finishes the batches first. Check that the
+      monitor still writes the history snapshot when the child exits on SIGTERM.
+   4. **Volume permissions.** A named volume inherits `/data`'s owner (10001). A bind
+      mount doesn't: if the host directory isn't writable by 10001, fishnet can't write
+      the stats file and the snapshot fails. Make the monitor say so once at startup
+      (a `W:` line naming the path and the uid), and document `chown 10001:10001` or
+      `--user`.
+   5. **Check the image by hand** (needs a container runtime; devenv has none, so add
+      `pkgs.podman` or use the host's, after asking):
+      - `docker build .` on amd64, plus one arm64 build under QEMU, since the builder
+        doesn't cross-compile.
+      - the binary is static (`file` / `ldd`), and the image grows only by its size.
+      - `docker run <image> demo` serves the dashboard on 9465 with no key.
+      - `docker run -e KEY=dummy <image>` against a dead `ENDPOINT`: fishnet's error
+        lines show up in the problems panel, `/healthz` and the `HEALTHCHECK` status
+        follow, and `docker stop` exits with fishnet's code.
+      - `KEY_FILE` from a mounted secret works, and the key doesn't appear in
+        `/api/status`, `/api/history`, `/api/events`, `/metrics` or the forwarded log.
+      - history and stats survive `docker rm` + `run` on the same volume.
+      These steps become the CI smoke test in phase 5.
+   6. **`hadolint`** passes (the pre-commit hook already runs it).
+   7. **README usage section:** `docker run` with a named volume and `-p 9465:9465`, a
+      NixOS `virtualisation.oci-containers` example with `KEY_FILE` from a secret
+      (sops-nix or agenix), the full env-var table (upstream's plus ours), the stop
+      signal note, and the reverse-proxy warning from [Security](#dashboard).
+      `AGENTS.md` only allows editing the README when asked, so this step waits for an
+      explicit go-ahead.
+
+   Decisions this phase settles: verbose stays off by default, and the port stays 9465
+   unless it collides with something on the host (see the open questions). The image
+   name waits for phase 5.
 5. **CI.** GitHub Actions:
    - run the tests
    - build the image, multi-arch amd64/arm64 like upstream
