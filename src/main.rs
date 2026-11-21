@@ -22,6 +22,7 @@ use fishnet_monitor::{
     supervisor::{self, ChildEvent, ChildSpec},
     view::{Changes, Topic},
     webhook::{self, Delivery},
+    writable,
 };
 use tokio::sync::mpsc;
 
@@ -137,6 +138,8 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
         }
         tokio::spawn(snapshot::run(path.clone(), Arc::clone(&state)));
     }
+    // After the load, which would replace the problems list.
+    warn_unwritable(&config, &state);
     let (alert_tx, alert_rx) = mpsc::channel::<Alert>(16);
 
     let webhook = config.webhook_url.clone().map(|url| {
@@ -285,6 +288,31 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
         eprintln!("W: fishnet-monitor: gave up waiting for webhook delivery");
     }
     code
+}
+
+/// Warns once, on stderr and in the problems list, if the stats file or the
+/// history snapshot can't be written (usually a bind mount not owned by the
+/// container's uid).
+fn warn_unwritable(config: &Config, state: &Mutex<State>) {
+    let mut files = Vec::new();
+    if let Some(path) = &config.stats_file {
+        files.push(("stats file", path.as_path()));
+    }
+    if let Some(path) = &config.history_file {
+        files.push(("history file", path.as_path()));
+    }
+    // SAFETY: geteuid has no preconditions.
+    let uid = unsafe { libc::geteuid() };
+    let now = SystemTime::now();
+    for warning in writable::check(&files, uid) {
+        let msg = format!("fishnet-monitor: {warning}");
+        eprintln!("W: {msg}");
+        state
+            .lock()
+            .unwrap()
+            .history
+            .record_problem(now, ProblemLevel::W, &msg);
+    }
 }
 
 /// Prints one line per input line: level, unparsed marker and event. Exits

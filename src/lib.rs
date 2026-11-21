@@ -15,3 +15,4 @@ pub mod stats_file;
 pub mod supervisor;
 pub mod view;
 pub mod webhook;
+pub mod writable;
