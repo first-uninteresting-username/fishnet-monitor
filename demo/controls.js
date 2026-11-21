@@ -1,5 +1,5 @@
 import { html } from "../frontend/src/html.js";
-import { Seg } from "../frontend/src/components/ui.js";
+import { Seg } from "../frontend/src/components/common.js";
 import { demo, setDemo } from "./mock.js";
 
 const GROUPS = [
@@ -11,12 +11,16 @@ const GROUPS = [
 
 export function DemoControls() {
   const d = demo.value;
-  return html`<div class="demo" role="group" aria-label="Demo controls">
-    <strong>Demo</strong><span>Mock data, nothing is connected.</span>
+  return html`<div
+    class="text-muted-foreground flex flex-wrap items-center gap-x-4.5 gap-y-2 rounded-xl border border-dashed px-3 py-2 text-xs"
+    role="group"
+    aria-label="Demo controls"
+  >
+    <strong class="text-foreground font-semibold">Demo</strong><span>Mock data, nothing is connected.</span>
     ${GROUPS.map(
-      ([key, label, options]) => html`<span class="grp">
+      ([key, label, options]) => html`<span class="inline-flex flex-wrap items-center gap-1.5">
         ${label}
-        <${Seg} label=${label} options=${options} value=${d[key]} onChange=${(v) => setDemo(key, v)} />
+        <${Seg} class="flex-wrap" label=${label} options=${options} value=${d[key]} onChange=${(v) => setDemo(key, v)} />
       </span>`,
     )}
   </div>`;

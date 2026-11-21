@@ -7,9 +7,12 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { render } from "preact";
 import { useSignal } from "@preact/signals";
 import { html } from "../html.js";
+import { cn } from "../lib/utils.js";
 import { positions } from "../store.js";
 import { dayLabel, hm, minutes } from "../format.js";
-import { Empty, Panel, Seg } from "./ui.js";
+import { Empty, Legend, Note, Panel, Seg } from "./common.js";
+import { Button } from "./ui/button.js";
+import { TIP } from "./Spark.js";
 
 const RANGES = [["1h", "1 h"], ["6h", "6 h"], ["24h", "24 h"], ["7d", "7 d"]];
 const MIN_ZOOM_BUCKETS = 4;
@@ -61,7 +64,15 @@ function rgba(hex, a) {
 function palette() {
   const css = getComputedStyle(document.documentElement);
   const get = (n) => css.getPropertyValue(`--${n}`).trim();
-  return { accent: get("accent"), surface: get("surface"), fg: get("fg"), muted: get("muted"), line: get("line"), idle: get("idle"), crit: get("crit") };
+  return {
+    accent: get("primary"),
+    surface: get("card"),
+    fg: get("foreground"),
+    muted: get("muted-foreground"),
+    line: get("border"),
+    idle: get("idle"),
+    crit: get("crit"),
+  };
 }
 
 // Re-render when the OS switches between light and dark.
@@ -140,12 +151,14 @@ function Tip({ s, i }) {
   const span = step === 60 ? hm(end) : `${hm(end - step * 1000)}–${hm(end)}`;
   const diff = v[i] - s.avg;
   const cmp =
-    kind[i] === "stop" ? html`<span class="d stop">stopped · fishnet not running</span>`
-    : kind[i] === "quiet" ? html`<span class="d down">no batch and no idle line</span>`
-    : kind[i] === "idle" ? html`<span class="d idle">idle · no work from lichess</span>`
-    : html`<span class=${`d ${diff >= 0 ? "up" : "down"}`}>${diff >= 0 ? "+" : "−"}${Math.abs(Math.round(diff))} vs avg</span>`;
-  return html`<span class="t">${dayLabel(end)} · ${span}</span>
-    <b class="num">${Math.round(v[i])}<small>positions/min</small></b>
+    kind[i] === "stop" ? html`<span class="text-crit text-[11.5px]">stopped · fishnet not running</span>`
+    : kind[i] === "quiet" ? html`<span class="text-warn text-[11.5px]">no batch and no idle line</span>`
+    : kind[i] === "idle" ? html`<span class="text-muted-foreground text-[11.5px]">idle · no work from lichess</span>`
+    : html`<span class=${`text-[11.5px] ${diff >= 0 ? "text-ok" : "text-warn"}`}>${diff >= 0 ? "+" : "−"}${Math.abs(Math.round(diff))} vs avg</span>`;
+  return html`<span class="text-muted-foreground font-mono text-[11px]">${dayLabel(end)} · ${span}</span>
+    <b class="text-base font-semibold tabular-nums">
+      ${Math.round(v[i])}<small class="text-muted-foreground ml-1 text-[11.5px] font-medium">positions/min</small>
+    </b>
     ${cmp}`;
 }
 
@@ -260,7 +273,7 @@ function Plot({ data, zoomed, onView, api }) {
   };
 
   return html`<div
-    class="chart"
+    class="focus-visible:outline-ring relative min-h-[210px] cursor-crosshair touch-pan-y rounded-md outline-offset-2 select-none focus-visible:outline-2 [&_.u-cursor-x]:border-r [&_.u-cursor-x]:border-solid [&_.u-cursor-x]:border-muted-foreground [&_.u-select]:border-x [&_.u-select]:border-dashed [&_.u-select]:border-primary/50 [&_.u-select]:bg-primary/15"
     ref=${host}
     tabindex="0"
     role="img"
@@ -268,7 +281,7 @@ function Plot({ data, zoomed, onView, api }) {
     onKeyDown=${onKey}
     onBlur=${() => api.current?.setCursor({ left: -10, top: -10 })}
   >
-    <div class="tip" ref=${tip} hidden></div>
+    <div class=${cn(TIP, "top-1")} ref=${tip} hidden></div>
   </div>`;
 }
 
@@ -289,7 +302,7 @@ export function PositionsChart() {
     title="Positions per minute"
     hint=${empty ? "" : summary(data, view.value)}
     actions=${html`
-      ${view.value && html`<button type="button" class="ghost" onClick=${reset}>Reset zoom</button>`}
+      ${view.value && html`<${Button} variant="outline" size="sm" class="h-7 text-xs" onClick=${reset}>Reset zoom<//>`}
       <${Seg} label="Range" options=${RANGES} value=${range.value} onChange=${pick} />
     `}
   >
@@ -297,15 +310,17 @@ export function PositionsChart() {
       ? html`<${Empty} title="Collecting data.">The first point appears one minute after the first batch.<//>`
       : html`
           <${Plot} data=${data} zoomed=${!!view.value} onView=${(v) => (view.value = v)} api=${api} />
-          <div class="legend">
-            <span><i style="background: var(--accent)"></i>positions analysed</span>
-            <span><i style="background: var(--idle); opacity: .3"></i>idle (no work from lichess)</span>
-            <span><i style="background: var(--crit); opacity: .35"></i>stopped</span>
-          </div>
-          <div class="chart-help">
+          <${Legend}
+            items=${[
+              ["bg-primary", "positions analysed"],
+              ["bg-idle/30", "idle (no work from lichess)"],
+              ["bg-crit/35", "stopped"],
+            ]}
+          />
+          <${Note}>
             Hover, tap or use the arrow keys to read a value. Drag across the chart to zoom in; double-click or press Esc
             to zoom back out.
-          </div>
+          <//>
         `}
   <//>`;
 }

@@ -7,6 +7,7 @@ in {
     pkgs.cargo-nextest
     pkgs.curl # scripts/vendor-frontend.sh
     pkgs.miniserve # demo-ui
+    pkgs.tailwindcss_4 # build-css: frontend/tailwind.css -> frontend/styles.css
   ];
 
   languages.rust = {
@@ -24,6 +25,10 @@ in {
     # The dashboard with mock data, no backend needed: http://localhost:8080/demo/
     demo-ui.exec = ''miniserve --port 8080 --index index.html "$DEVENV_ROOT" "$@"'';
     vendor-frontend.exec = ''"$DEVENV_ROOT/scripts/vendor-frontend.sh"'';
+    # Tailwind: compiles frontend/tailwind.css into frontend/styles.css (committed,
+    # so the Rust and Docker builds need no Tailwind). `watch-css` rebuilds on save.
+    build-css.exec = ''tailwindcss --cwd "$DEVENV_ROOT/frontend" -i tailwind.css -o styles.css --minify "$@"'';
+    watch-css.exec = ''build-css --watch "$@"'';
   };
 
   # Run by `devenv test` (also in the update-devenv-lock workflow).
@@ -45,7 +50,7 @@ in {
     detect-private-keys.enable = true;
     end-of-file-fixer = {
       enable = true;
-      excludes = ["devenv.lock"];
+      excludes = ["devenv.lock" "^frontend/styles\\.css$"];
     };
     trim-trailing-whitespace.enable = true;
     check-json.enable = true;
@@ -59,5 +64,14 @@ in {
     };
     actionlint.enable = true;
     hadolint.enable = true;
+
+    # frontend/styles.css is generated: rebuild it whenever its sources change.
+    build-css = {
+      enable = true;
+      name = "build-css";
+      entry = "${pkgs.tailwindcss_4}/bin/tailwindcss --cwd frontend -i tailwind.css -o styles.css --minify";
+      files = "^(frontend/(tailwind\\.css|src/.*\\.js|vendor/uplot\\.css)|demo/.*\\.(js|html))$";
+      pass_filenames = false;
+    };
   };
 }

@@ -4,12 +4,18 @@ import { html } from "../html.js";
 import { client, conn, now } from "../store.js";
 import { badge, health, quiet, sinceActivity, stalled, stale, staleSince } from "../derived.js";
 import { dur, hms, uptime } from "../format.js";
-import { AlertIcon, ClockIcon, Logo, ReconnectIcon } from "./ui.js";
+import { cn } from "../lib/utils.js";
+import { AlertIcon, ClockIcon, Dot, Logo, ReconnectIcon } from "./common.js";
+import { Alert, AlertDescription } from "./ui/alert.js";
+import { Badge } from "./ui/badge.js";
+import { Progress } from "./ui/progress.js";
 
-function Meta({ label, children, waiting, class: cls = "", title }) {
-  return html`<div>
-    <span>${label}</span>
-    <b class=${`${cls}${waiting ? " waiting" : ""}`} title=${title}>${children}</b>
+const TONE_TEXT = { ok: "text-ok", warn: "text-warn", crit: "text-crit" };
+
+function Meta({ label, children, waiting, class: cls, title }) {
+  return html`<div class="grid">
+    <span class="text-muted-foreground text-[11px] tracking-wider uppercase">${label}</span>
+    <b class=${cn("font-mono text-[13px] font-medium", waiting && "text-muted-foreground font-sans italic", cls)} title=${title}>${children}</b>
   </div>`;
 }
 
@@ -18,37 +24,47 @@ export function Header() {
   const b = badge.value;
   const h = health.value;
   const t = now.value;
-  return html`<header class="top">
-    <div class="brand">
+  return html`<header class="bg-card flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border px-4 py-3.5 shadow-sm">
+    <div class="mr-auto flex items-center gap-2.5">
       <${Logo} />
       <div>
-        <h1>fishnet-monitor</h1>
-        <small>${c.host}${c.listen && ` · ${c.listen}`}</small>
+        <h1 class="text-xl font-semibold tracking-tight">fishnet-monitor</h1>
+        <small class="text-muted-foreground block font-mono text-xs">${c.host}${c.listen && ` · ${c.listen}`}</small>
       </div>
     </div>
-    <span class=${`badge${b.pulse ? " pulse" : ""}`} style=${`--state: var(--${b.tone})`}>
-      <span class="dot"></span><span>${b.text}</span>
-    </span>
-    <div class="meta">
-      <${Meta} label="Health" class=${`health ${h.tone}`}>${h.text}<//>
+    <${Badge}
+      variant="outline"
+      class="gap-1.5 rounded-full border-(--tone)/35 bg-(--tone)/15 py-1 pr-3 pl-2.5 text-[13px] font-semibold text-(--tone)"
+      style=${`--tone: var(--${b.tone})`}
+    >
+      <${Dot} pulse=${b.pulse} /><span>${b.text}</span>
+    <//>
+    <div class="flex flex-wrap gap-x-5.5 gap-y-1.5">
+      <${Meta} label="Health" class=${TONE_TEXT[h.tone]}>${h.text}<//>
       <${Meta} label="Version" waiting=${!c.version} title=${c.version ? null : "Read from the summary line fishnet prints every 2 minutes"}>
         ${c.version ?? "waiting for summary"}
       <//>
       <${Meta} label="Cores">${c.cores ?? "—"}<//>
-      <${Meta} label="Uptime" class="num">${c.startedAt ? uptime((t - c.startedAt) / 1000) : "—"}<//>
-      <${Meta} label="Last batch" class="num" waiting=${!c.lastBatchAt}>
+      <${Meta} label="Uptime" class="tabular-nums">${c.startedAt ? uptime((t - c.startedAt) / 1000) : "—"}<//>
+      <${Meta} label="Last batch" class="tabular-nums" waiting=${!c.lastBatchAt}>
         ${c.lastBatchAt ? `${dur((t - c.lastBatchAt) / 1000)} ago` : "none yet"}
       <//>
-      ${c.queue != null && html`<${Meta} label="Queue" class="num" title="Needs FISHNET_VERBOSE=1">${c.queue} pending<//>`}
+      ${c.queue != null && html`<${Meta} label="Queue" class="tabular-nums" title="Needs FISHNET_VERBOSE=1">${c.queue} pending<//>`}
     </div>
   </header>`;
 }
 
+// A shadcn Alert in the colour of `tone`.
 function Strip({ tone, icon: Icon, children }) {
-  return html`<div class="strip" style=${`--tone: var(--${tone})`}>
+  // No role="alert": the stall countdown changes every second.
+  return html`<${Alert}
+    role=${null}
+    class="border-(--tone)/45 bg-[color-mix(in_srgb,var(--tone)_10%,var(--card))] [&_b]:text-(--tone) [&_code]:font-mono [&_code]:text-[12.5px] [&>svg]:text-(--tone)"
+    style=${`--tone: var(--${tone})`}
+  >
     <${Icon} />
-    <div class="body">${children}</div>
-  </div>`;
+    <${AlertDescription} class="text-foreground min-w-0 gap-1.5">${children}<//>
+  <//>`;
 }
 
 export function StallStrip() {
@@ -63,8 +79,8 @@ export function StallStrip() {
         ? html`<code>/healthz</code> now reports unhealthy, so Docker marks the container unhealthy.`
         : html`fishnet normally logs one or the other every few minutes. <code>/healthz</code> reports unhealthy in ${dur(limit - s)}.`}
     </div>
-    <div class="meter"><i style=${`width: ${Math.min(100, (100 * s) / limit)}%`}></i></div>
-    <div class="meter-labels">
+    <${Progress} class="h-1.5 max-w-[440px] bg-(--tone)/20" indicator="bg-(--tone) duration-400" value=${(100 * s) / limit} />
+    <div class="text-muted-foreground flex w-full max-w-[440px] justify-between gap-3 text-[11px]">
       <span>last activity</span><span>unhealthy at ${Math.round(limit / 60)} min (<code>STALL_TIMEOUT</code>)</span>
     </div>
   <//>`;

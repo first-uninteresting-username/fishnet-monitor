@@ -1,0 +1,164 @@
+/* fishnet-monitor dashboard: Tailwind input. `build-css` compiles it to
+   frontend/styles.css, which is generated: don't edit that file by hand.
+   Components use utility classes; this file only holds the theme tokens
+   (shadcn/ui names, mapped to the palette in PLAN.md, "Dashboard") and a few
+   base rules. */
+@import "tailwindcss" source(none);
+@source "./src";
+@source "../demo";
+
+/* uPlot's own stylesheet, in a layer so the utilities can override it. */
+@import "./vendor/uplot.css" layer(base);
+
+/* Palette: coolors.co/14110f-34312d-7e7f83-d9c5b2
+   smoky black #14110f · black olive #34312d · gray #7e7f83 · dun #d9c5b2
+   Tints and shades are derived from those four; the status colours are tuned
+   to sit with them. Values stay hex: the chart reads them for its canvas. */
+:root {
+  --radius: 0.625rem;
+  --background: #f4eee8;
+  --foreground: #14110f;
+  --card: #fbf8f5;
+  --card-foreground: #14110f;
+  --popover: #ebe1d6;
+  --popover-foreground: #14110f;
+  --primary: #34312d;
+  --primary-foreground: #fbf8f5;
+  --secondary: #ebe1d6;
+  --secondary-foreground: #14110f;
+  --muted: #ebe1d6;
+  --muted-foreground: #5f6064; /* gray #7e7f83 darkened for AA contrast */
+  --accent: #e3d5c6;
+  --accent-foreground: #34312d;
+  --destructive: #b0402f;
+  --border: #d9c5b2;
+  --input: #d9c5b2;
+  --ring: #34312d;
+  /* Not in shadcn: status, the second engine (hce), player titles, sides. */
+  --ok: #3f7a4f;
+  --warn: #9a6a1c;
+  --crit: #b0402f;
+  --idle: #7e7f83;
+  --hce: #a07a52;
+  --title: #8b4a24;
+  --side-w: #fbf8f5;
+  --side-b: #34312d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #14110f;
+    --foreground: #f3ebe2;
+    --card: #201c19;
+    --card-foreground: #f3ebe2;
+    --popover: #2e2925;
+    --popover-foreground: #f3ebe2;
+    --primary: #d9c5b2;
+    --primary-foreground: #14110f;
+    --secondary: #2e2925;
+    --secondary-foreground: #f3ebe2;
+    --muted: #2e2925;
+    --muted-foreground: #aeafb3; /* gray #7e7f83 lightened for AA on dark */
+    --accent: #4a4139;
+    --accent-foreground: #f3ebe2;
+    --destructive: #e0735f;
+    --border: #4a4540;
+    --input: #5a544d;
+    --ring: #d9c5b2;
+    --ok: #86b38f;
+    --warn: #d9a55b;
+    --crit: #e0735f;
+    --idle: #8e8f93;
+    --hce: #b98a5e;
+    --title: #e39a68;
+    --side-w: #f3ebe2;
+    --side-b: #14110f;
+  }
+}
+
+/* Same as the block above, for a forced dark theme. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #14110f;
+  --foreground: #f3ebe2;
+  --card: #201c19;
+  --card-foreground: #f3ebe2;
+  --popover: #2e2925;
+  --popover-foreground: #f3ebe2;
+  --primary: #d9c5b2;
+  --primary-foreground: #14110f;
+  --secondary: #2e2925;
+  --secondary-foreground: #f3ebe2;
+  --muted: #2e2925;
+  --muted-foreground: #aeafb3; /* gray #7e7f83 lightened for AA on dark */
+  --accent: #4a4139;
+  --accent-foreground: #f3ebe2;
+  --destructive: #e0735f;
+  --border: #4a4540;
+  --input: #5a544d;
+  --ring: #d9c5b2;
+  --ok: #86b38f;
+  --warn: #d9a55b;
+  --crit: #e0735f;
+  --idle: #8e8f93;
+  --hce: #b98a5e;
+  --title: #e39a68;
+  --side-w: #f3ebe2;
+  --side-b: #14110f;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-crit: var(--crit);
+  --color-idle: var(--idle);
+  --color-hce: var(--hce);
+  --color-title: var(--title);
+  --color-side-w: var(--side-w);
+  --color-side-b: var(--side-b);
+}
+
+@theme {
+  /* A new batch row lights up briefly. */
+  --animate-flash: flash 1.6s ease-out;
+  @keyframes flash {
+    from {
+      background-color: var(--accent);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground text-sm;
+  }
+}

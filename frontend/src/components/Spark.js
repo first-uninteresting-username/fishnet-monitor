@@ -4,6 +4,11 @@
 // the last `hours` hours, the latest at the right edge.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
+import { cn } from "../lib/utils.js";
+
+// Floating readout box, shared with the positions chart.
+export const TIP =
+  "bg-popover text-popover-foreground pointer-events-none absolute z-10 grid gap-px rounded-md border px-2.5 py-1.5 text-xs whitespace-nowrap shadow-md";
 
 const H = 48;
 const PAD = { t: 6, b: 4, x: 4 };
@@ -35,7 +40,7 @@ function smooth(pts) {
 
 const ago = (hrs) => (hrs < 0.05 ? "now" : hrs < 1 ? `${Math.round(hrs * 60)} min ago` : `${hrs.toFixed(hrs < 10 ? 1 : 0).replace(/\.0$/, "")} h ago`);
 
-export function Spark({ vals, format = String, label = "", hours = 24, color = "var(--accent)" }) {
+export function Spark({ vals, format = String, label = "", hours = 24, color = "var(--primary)" }) {
   const box = useRef();
   const [w, setW] = useState(0);
   const [hot, setHot] = useState(null);
@@ -82,7 +87,7 @@ export function Spark({ vals, format = String, label = "", hours = 24, color = "
   const gid = `g${label.replace(/\W/g, "")}`;
 
   return html`<div
-    class="spark"
+    class="focus-visible:outline-ring relative -mx-1 mt-1 h-12 cursor-crosshair touch-pan-y rounded-md outline-offset-2 focus-visible:outline-2"
     ref=${box}
     tabindex=${ok ? 0 : -1}
     role="img"
@@ -94,7 +99,7 @@ export function Spark({ vals, format = String, label = "", hours = 24, color = "
     onKeyDown=${onKey}
   >
     ${ok &&
-    html`<svg width=${w} height=${H} viewBox=${`0 0 ${w} ${H}`} aria-hidden="true">
+    html`<svg class="block overflow-visible" width=${w} height=${H} viewBox=${`0 0 ${w} ${H}`} aria-hidden="true">
         <defs>
           <linearGradient id=${gid} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color=${color} stop-opacity=".28" />
@@ -103,13 +108,13 @@ export function Spark({ vals, format = String, label = "", hours = 24, color = "
         </defs>
         <path d=${`${path}L${x(last).toFixed(1)},${H}L${x(0).toFixed(1)},${H}Z`} fill=${`url(#${gid})`} />
         <path d=${path} fill="none" stroke=${color} stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" />
-        ${hot != null && html`<line class="cross" x1=${x(hot)} x2=${x(hot)} y1="0" y2=${H} />`}
-        <circle class="dot" cx=${x(cur)} cy=${y(vals[cur])} r=${hot != null ? 4 : 3} fill=${color} />
+        ${hot != null && html`<line class="stroke-muted-foreground [stroke-dasharray:2_2]" stroke-width="1" x1=${x(hot)} x2=${x(hot)} y1="0" y2=${H} />`}
+        <circle class="stroke-card" stroke-width="2" cx=${x(cur)} cy=${y(vals[cur])} r=${hot != null ? 4 : 3} fill=${color} />
       </svg>
       ${hot != null &&
-      html`<div class="tip" style=${`left:${tipX}px; transform: translate(-50%, calc(-100% - 6px)); top: 0`}>
-        <b class="num">${format(vals[hot])}</b>
-        <span class="t">${ago(((last - hot) / last) * hours)}</span>
+      html`<div class=${cn(TIP, "top-0 -translate-x-1/2 -translate-y-[calc(100%+6px)] px-2 py-1")} style=${`left:${tipX}px`}>
+        <b class="text-base font-semibold tabular-nums">${format(vals[hot])}</b>
+        <span class="text-muted-foreground font-mono text-[11px]">${ago(((last - hot) / last) * hours)}</span>
       </div>`}`}
   </div>`;
 }

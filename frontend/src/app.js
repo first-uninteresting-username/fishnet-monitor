@@ -1,6 +1,7 @@
 // The dashboard page. Data sources write the signals in store.js; this file
 // only lays out the panels.
 import { html } from "./html.js";
+import { cn } from "./lib/utils.js";
 import { lookup } from "./store.js";
 import { stale } from "./derived.js";
 import { FatalStrip, Header, StallStrip, StaleStrip } from "./components/Header.js";
@@ -12,7 +13,7 @@ import { PlayerStats, TopGames } from "./components/Players.js";
 import { Batches } from "./components/Batches.js";
 
 function Footer() {
-  return html`<footer>
+  return html`<footer class="text-muted-foreground flex flex-wrap gap-x-4.5 gap-y-1.5 text-xs [&_code]:font-mono">
     <span>Reads fishnet's log and <code>/data/fishnet-stats</code>. Never shows your key.</span>
     <span>
       ${lookup.value.enabled
@@ -25,21 +26,21 @@ function Footer() {
 
 // `top` is rendered above the header (the demo puts its controls there).
 export function App({ top }) {
-  return html`<div class="wrap">
+  return html`<div class="mx-auto grid max-w-[1240px] gap-4 pt-4 pb-10 pr-[max(16px,env(safe-area-inset-right,0px))] pl-[max(16px,env(safe-area-inset-left,0px))]">
     ${top}
     <${Header} />
     <${StallStrip} />
     <${FatalStrip} />
     <${StaleStrip} />
-    <div class=${`content${stale.value ? " stale" : ""}`}>
+    <div class=${cn("grid gap-4", stale.value && "*:opacity-55 *:saturate-30")}>
       <${Tiles} />
       <${PositionsChart} />
-      <div class="grid2">
+      <div class="grid grid-cols-1 gap-4 min-[860px]:grid-cols-2">
         <${Variants} />
         <${Problems} />
       </div>
       ${lookup.value.enabled &&
-      html`<div class="grid2">
+      html`<div class="grid grid-cols-1 gap-4 min-[860px]:grid-cols-2">
         <${TopGames} />
         <${PlayerStats} />
       </div>`}

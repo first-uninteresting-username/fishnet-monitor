@@ -26,18 +26,4 @@
       versioningTemplate: 'npm',
     },
   ],
-  packageRules: [
-    {
-      // The lock holds a sum per file, so a bump is only complete once the
-      // script has downloaded the new files and rewritten the sums. The
-      // command must be allowed by allowedCommands in the self-hosted config
-      // (.github/workflows/renovate.yml).
-      matchFileNames: ['frontend/vendor.lock'],
-      postUpgradeTasks: {
-        commands: ['bash scripts/vendor-frontend.sh --update'],
-        fileFilters: ['frontend/vendor.lock', 'frontend/vendor/**'],
-        executionMode: 'branch',
-      },
-    },
-  ],
 }

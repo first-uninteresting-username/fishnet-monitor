@@ -150,7 +150,18 @@ The monitor has to keep history itself, because no Prometheus is assumed.
 **Frontend stack:** Preact + htm + `@preact/signals` (~15 KB together) with no build
 step, plus one small chart library (uPlot, ~50 KB). All of them are vendored as ES
 modules and loaded through an import map, so there's no Node, bundler or
-`package.json`. Components use htm's tagged templates instead of JSX. Each SSE event
+`package.json`. Styling is Tailwind CSS v4 only, with no hand-written CSS: components
+use utility classes, and `frontend/tailwind.css` holds just the theme tokens and a
+few base rules. The standalone Tailwind CLI (from nixpkgs, in devenv) compiles it to
+`frontend/styles.css` with `build-css` (or `watch-css`); a pre-commit hook rebuilds it,
+and the output is committed so the Rust and Docker builds don't need Tailwind. UI
+elements are [shadcn/ui](https://ui.shadcn.com) components (Card, Button, Badge,
+Alert, Progress, Table, ToggleGroup, Empty), ported to htm in
+`frontend/src/components/ui/` with the upstream class strings; their helpers
+`clsx`, `tailwind-merge` and `class-variance-authority` are vendored like the rest.
+The palette below is mapped to shadcn's token names (`--background`, `--primary`,
+`--muted-foreground`, …) plus `--ok`, `--warn`, `--crit`, `--idle`, `--hce` and
+`--title`. Components use htm's tagged templates instead of JSX. Each SSE event
 updates a signal, and only the parts of the page that read it re-render. uPlot charts
 are wrapped in small components that call `setData` instead of re-rendering. The files
 are embedded in the binary (`rust-embed` or `include_str!`), so the image has no extra
@@ -159,7 +170,8 @@ files. Dark and light themes follow `prefers-color-scheme`. The palette is
 dark mode uses `#14110f` as the background and `#d9c5b2` as the accent, light mode uses
 a `#d9c5b2` tint as the background and `#34312d` as the accent, and `#7e7f83` marks idle
 state. Status colours (ok, warn, crit) are muted to match. If the UI ever outgrows
-this (TypeScript, several pages), the components move to Vite + JSX unchanged.
+this (TypeScript, several pages), the components move to Vite + JSX, and `ui/` can be
+replaced by the real shadcn/ui components.
 
 **Security:** the dashboard is read-only and has no login. It never shows the fishnet
 key, and the key never goes into history, `/api/*` or the forwarded log. The listen
@@ -241,7 +253,7 @@ has no curl.
    `scripts/vendor-frontend.sh`: it reads pinned versions and SHA-256 sums from
    `frontend/vendor.lock`, downloads the ES module builds into `frontend/vendor/`,
    and fails on a checksum mismatch. Renovate bumps the versions through a custom
-   manager and runs the script with `--update` to refresh sums and files. Test the UI with a fake-log mode
+   manager; run the script with `--update` to refresh sums and files. Test the UI with a fake-log mode
    (`fishnet-monitor demo`) that replays the fixtures, so you can work on the UI
    without a real fishnet key. Then add the game lookup, the top-games panel and the
    titled/supporter counts, tested against a mock export endpoint (batching, 429

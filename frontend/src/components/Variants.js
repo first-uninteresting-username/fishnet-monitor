@@ -1,7 +1,9 @@
 import { html } from "../html.js";
 import { variants } from "../store.js";
 import { fmt } from "../format.js";
-import { Empty, Panel } from "./ui.js";
+import { Bar, Empty, Legend, Panel } from "./common.js";
+
+const FILL = { nnue: "bg-primary", hce: "bg-hce" };
 
 export function Variants() {
   const v = variants.value;
@@ -9,20 +11,19 @@ export function Variants() {
   const max = Math.max(1, ...v.map((x) => x.n));
   return html`<${Panel} title="Batches by variant" hint="last 7 days">
     ${v.length
-      ? html`<div class="vbars">
+      ? html`<div class="grid gap-1.5">
             ${v.map(({ name, n, eval: ev }) => {
               const share = (100 * n) / total;
-              return html`<div class="vbar">
-                <span>${name}</span>
-                <div class="track"><div class=${`fill ${ev}`} style=${`width: ${((100 * n) / max).toFixed(2)}%`}></div></div>
-                <span class="n num">${fmt(n)}</span>
-                <span class="p num">${share < 1 ? share.toFixed(1) : Math.round(share)}%</span>
-              </div>`;
+              return html`<${Bar}
+                label=${name}
+                pct=${(100 * n) / max}
+                fill=${FILL[ev]}
+                n=${fmt(n)}
+                share=${`${share < 1 ? share.toFixed(1) : Math.round(share)}%`}
+              />`;
             })}
           </div>
-          <div class="legend">
-            <span><i style="background: var(--accent)"></i>nnue</span><span><i style="background: var(--hce)"></i>hce</span>
-          </div>`
+          <${Legend} items=${[["bg-primary", "nnue"], ["bg-hce", "hce"]]} />`
       : html`<${Empty}>No batches yet.<//>`}
   <//>`;
 }

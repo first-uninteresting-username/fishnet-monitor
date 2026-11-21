@@ -6,17 +6,7 @@
   <title>fishnet-monitor demo</title>
   <!-- The real dashboard (frontend/) with mock data instead of the API.
        ES modules don't load from file://, so serve the repo root: `demo-ui`. -->
-  <link rel="stylesheet" href="../frontend/vendor/uplot.css">
   <link rel="stylesheet" href="../frontend/styles.css">
-  <style>
-    .demo {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px;
-      padding: 8px 12px; border: 1px dashed var(--line); border-radius: var(--radius);
-      color: var(--muted); font-size: 12px;
-    }
-    .demo strong { color: var(--fg); font-weight: 600; }
-    .demo .grp { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  </style>
   <script type="importmap">
     {
       "imports": {
@@ -25,7 +15,10 @@
         "htm": "../frontend/vendor/htm.mjs",
         "@preact/signals-core": "../frontend/vendor/signals-core.mjs",
         "@preact/signals": "../frontend/vendor/signals.mjs",
-        "uplot": "../frontend/vendor/uplot.mjs"
+        "uplot": "../frontend/vendor/uplot.mjs",
+        "clsx": "../frontend/vendor/clsx.mjs",
+        "tailwind-merge": "../frontend/vendor/tailwind-merge.mjs",
+        "class-variance-authority": "../frontend/vendor/cva.mjs"
       }
     }
   </script>
