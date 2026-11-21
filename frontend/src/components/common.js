@@ -1,7 +1,6 @@
 // Building blocks shared by the panels, made from the shadcn components in ui/.
 import { html } from "../html.js";
 import { cn } from "../lib/utils.js";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card.js";
 import { Empty as EmptyRoot, EmptyDescription, EmptyTitle } from "./ui/empty.js";
 import { ToggleGroup } from "./ui/toggle-group.js";
 
@@ -10,21 +9,23 @@ import { ToggleGroup } from "./ui/toggle-group.js";
 export const Seg = ({ item, ...props }) => html`<${ToggleGroup} item=${cn("h-7 flex-none px-2.5 text-xs", item)} ...${props} />`;
 
 export function Empty({ title, children }) {
-  return html`<${EmptyRoot} class="gap-1 rounded-lg border border-dashed px-4 py-7 md:p-7">
+  return html`<${EmptyRoot} class="items-start gap-1 p-0 py-4 text-left md:p-0 md:py-4">
     ${title && html`<${EmptyTitle} class="text-sm font-medium">${title}<//>`}
-    <${EmptyDescription} class="text-[13px]">${children}<//>
+    <${EmptyDescription} class="max-w-prose text-[13px]">${children}<//>
   <//>`;
 }
 
+// A section of the page: a hairline rule, a heading row, then the content.
+// No card chrome; the rules and the spacing carry the structure.
 export function Panel({ title, hint, actions, class: cls, children }) {
-  return html`<${Card} class=${cn("min-w-0 gap-3 py-4", cls)}>
-    <${CardHeader} class="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 px-4">
-      <${CardTitle} class="mr-auto text-[15px]">${title}<//>
-      ${hint != null && hint !== "" && html`<${CardDescription} class="text-xs tabular-nums">${hint}<//>`}
+  return html`<section class=${cn("grid min-w-0 content-start gap-3 border-t pt-3", cls)}>
+    <header class="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1.5">
+      <h2 class="mr-auto text-sm font-semibold">${title}</h2>
+      ${hint != null && hint !== "" && html`<span class="text-muted-foreground text-xs tabular-nums">${hint}</span>`}
       ${actions && html`<div class="flex flex-wrap items-center gap-2">${actions}</div>`}
-    <//>
-    <${CardContent} class="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-2.5 px-4">${children}<//>
-  <//>`;
+    </header>
+    <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-2.5">${children}</div>
+  </section>`;
 }
 
 // Small print under a panel.
@@ -34,7 +35,7 @@ export const Note = ({ children }) => html`<div class="text-muted-foreground tex
 export const Legend = ({ items }) =>
   html`<div class="text-muted-foreground flex flex-wrap gap-x-3.5 gap-y-1.5 text-xs">
     ${items.map(
-      ([swatch, label]) => html`<span class="inline-flex items-center gap-1.5"><i class=${cn("size-2.5 rounded-xs", swatch)}></i>${label}</span>`,
+      ([swatch, label]) => html`<span class="inline-flex items-center gap-1.5"><i class=${cn("size-2.5", swatch)}></i>${label}</span>`,
     )}
   </div>`;
 
@@ -74,8 +75,8 @@ export function Bar({ label, pct, fill, n, share }) {
     )}
   >
     <span>${label}</span>
-    <div class="bg-muted h-3.5 overflow-hidden rounded-xs">
-      <div class=${cn("h-full min-w-0.5 rounded-xs", fill)} style=${`width: ${pct.toFixed(2)}%`}></div>
+    <div class="bg-muted h-2 overflow-hidden">
+      <div class=${cn("h-full min-w-0.5", fill)} style=${`width: ${pct.toFixed(2)}%`}></div>
     </div>
     <span class="text-muted-foreground text-right font-mono text-xs tabular-nums">${n}</span>
     ${share != null && html`<span class="text-right font-mono text-xs tabular-nums">${share}</span>`}
@@ -86,7 +87,7 @@ export function Bar({ label, pct, fill, n, share }) {
 // themselves with `max-sm:order-*` / `max-sm:col-span-full`; cells with a
 // `data-label` show it above the value.
 export const cardsTable =
-  "max-sm:block max-sm:[&_thead]:hidden max-sm:[&_tbody]:block max-sm:[&_tr]:grid max-sm:[&_tr]:grid-cols-[minmax(0,1fr)_auto] max-sm:[&_tr]:gap-x-3 max-sm:[&_tr]:gap-y-1.5 max-sm:[&_tr]:px-0.5 max-sm:[&_tr]:py-2.5 max-sm:[&_td]:block max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:whitespace-normal max-sm:[&_td[data-label]]:before:block max-sm:[&_td[data-label]]:before:font-sans max-sm:[&_td[data-label]]:before:text-[10.5px] max-sm:[&_td[data-label]]:before:font-normal max-sm:[&_td[data-label]]:before:tracking-wider max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:uppercase max-sm:[&_td[data-label]]:before:content-[attr(data-label)]";
+  "max-sm:block max-sm:[&_thead]:hidden max-sm:[&_tbody]:block max-sm:[&_tr]:grid max-sm:[&_tr]:grid-cols-[minmax(0,1fr)_auto] max-sm:[&_tr]:gap-x-3 max-sm:[&_tr]:gap-y-1.5 max-sm:[&_tr]:px-0.5 max-sm:[&_tr]:py-2.5 max-sm:[&_td]:block max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:whitespace-normal max-sm:[&_td[data-label]]:before:block max-sm:[&_td[data-label]]:before:font-sans max-sm:[&_td[data-label]]:before:text-[11px] max-sm:[&_td[data-label]]:before:font-normal max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:content-[attr(data-label)]";
 
-// Table head cell in the dashboard's small-caps style.
-export const headClass = "text-muted-foreground h-auto px-2 py-1.5 text-[11px] font-medium tracking-wider uppercase";
+// Table head cell: small, muted, normal case.
+export const headClass = "text-muted-foreground h-auto px-2 py-1.5 text-xs font-normal";

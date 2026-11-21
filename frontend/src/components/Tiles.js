@@ -2,18 +2,17 @@ import { html } from "../html.js";
 import { totals } from "../store.js";
 import { compact, fmt } from "../format.js";
 import { cn } from "../lib/utils.js";
-import { Card } from "./ui/card.js";
 import { Spark } from "./Spark.js";
 
 function Tile({ label, value, unit, sub, spark, format = fmt }) {
-  return html`<${Card} class="min-w-0 gap-0.5 px-3.5 pt-3 pb-2.5">
-    <div class="text-muted-foreground text-[11px] tracking-wider uppercase">${label}</div>
-    <div class=${cn("text-[26px] font-semibold tracking-tight tabular-nums", value == null && "text-muted-foreground")}>
+  return html`<div class="bg-background grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-0.5 px-3 py-3 max-sm:odd:pl-0 max-sm:last:odd:col-span-2 sm:first:pl-0">
+    <div class="text-muted-foreground text-xs">${label}</div>
+    <div class=${cn("text-2xl font-semibold tracking-tight tabular-nums", value == null && "text-muted-foreground")}>
       ${value ?? "—"}${unit && value != null && html`<small class="text-muted-foreground ml-1 text-[13px] font-medium">${unit}</small>`}
     </div>
     <div class="text-muted-foreground text-xs tabular-nums">${sub}</div>
     <${Spark} vals=${spark} format=${format} label=${label} />
-  <//>`;
+  </div>`;
 }
 
 const count = (label, x, format) =>
@@ -22,7 +21,7 @@ const count = (label, x, format) =>
 export function Tiles() {
   const t = totals.value;
   if (!t) return null;
-  return html`<section class="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3" aria-label="Totals">
+  return html`<section class="bg-border grid grid-cols-2 gap-px sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] border-t" aria-label="Totals">
     ${count("Batches", t.batches, fmt)}
     ${count("Positions", t.positions, compact)}
     ${count("Nodes", t.nodes, compact)}

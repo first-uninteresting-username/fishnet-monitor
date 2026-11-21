@@ -7,15 +7,14 @@ import { dur, hms, uptime } from "../format.js";
 import { cn } from "../lib/utils.js";
 import { AlertIcon, ClockIcon, Dot, Logo, ReconnectIcon } from "./common.js";
 import { Alert, AlertDescription } from "./ui/alert.js";
-import { Badge } from "./ui/badge.js";
 import { Progress } from "./ui/progress.js";
 
 const TONE_TEXT = { ok: "text-ok", warn: "text-warn", crit: "text-crit" };
 
 function Meta({ label, children, waiting, class: cls, title }) {
-  return html`<div class="grid">
-    <span class="text-muted-foreground text-[11px] tracking-wider uppercase">${label}</span>
-    <b class=${cn("font-mono text-[13px] font-medium", waiting && "text-muted-foreground font-sans italic", cls)} title=${title}>${children}</b>
+  return html`<div class="grid gap-px">
+    <dt class="text-muted-foreground text-xs">${label}</dt>
+    <dd class=${cn("font-mono text-[13px]", waiting && "text-muted-foreground font-sans italic", cls)} title=${title}>${children}</dd>
   </div>`;
 }
 
@@ -24,22 +23,20 @@ export function Header() {
   const b = badge.value;
   const h = health.value;
   const t = now.value;
-  return html`<header class="bg-card flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border px-4 py-3.5 shadow-sm">
-    <div class="mr-auto flex items-center gap-2.5">
+  return html`<header class="flex flex-wrap items-end gap-x-8 gap-y-3 pb-1">
+    <div class="mr-auto flex items-center gap-3">
       <${Logo} />
-      <div>
-        <h1 class="text-xl font-semibold tracking-tight">fishnet-monitor</h1>
-        <small class="text-muted-foreground block font-mono text-xs">${c.host}${c.listen && ` · ${c.listen}`}</small>
+      <div class="grid gap-0.5">
+        <div class="flex flex-wrap items-baseline gap-x-3">
+          <h1 class="text-xl font-semibold tracking-tight">fishnet-monitor</h1>
+          <span class="inline-flex items-center gap-1.5 text-sm font-medium text-(--tone)" style=${`--tone: var(--${b.tone})`}>
+            <${Dot} pulse=${b.pulse} /><span>${b.text}</span>
+          </span>
+        </div>
+        <small class="text-muted-foreground font-mono text-xs">${c.host}${c.listen && ` · ${c.listen}`}</small>
       </div>
     </div>
-    <${Badge}
-      variant="outline"
-      class="gap-1.5 rounded-full border-(--tone)/35 bg-(--tone)/15 py-1 pr-3 pl-2.5 text-[13px] font-semibold text-(--tone)"
-      style=${`--tone: var(--${b.tone})`}
-    >
-      <${Dot} pulse=${b.pulse} /><span>${b.text}</span>
-    <//>
-    <div class="flex flex-wrap gap-x-5.5 gap-y-1.5">
+    <dl class="flex flex-wrap gap-x-6 gap-y-2">
       <${Meta} label="Health" class=${TONE_TEXT[h.tone]}>${h.text}<//>
       <${Meta} label="Version" waiting=${!c.version} title=${c.version ? null : "Read from the summary line fishnet prints every 2 minutes"}>
         ${c.version ?? "waiting for summary"}
@@ -50,7 +47,7 @@ export function Header() {
         ${c.lastBatchAt ? `${dur((t - c.lastBatchAt) / 1000)} ago` : "none yet"}
       <//>
       ${c.queue != null && html`<${Meta} label="Queue" class="tabular-nums" title="Needs FISHNET_VERBOSE=1">${c.queue} pending<//>`}
-    </div>
+    </dl>
   </header>`;
 }
 

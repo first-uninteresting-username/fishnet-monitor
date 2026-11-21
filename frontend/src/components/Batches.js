@@ -7,7 +7,7 @@ import { Dot, Empty, Panel, cardsTable, headClass } from "./common.js";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table.js";
 import { Chip, GameLink, GameRating, Pair } from "./Players.js";
 
-const ENGINE = { nnue: "text-primary bg-primary/10", hce: "text-hce bg-hce/15" };
+const ENGINE = { nnue: "text-foreground", hce: "text-hce" };
 
 function Live() {
   const lost = conn.value.state === "lost";
@@ -27,7 +27,7 @@ function Row({ b, withPlayers, ratelimited }) {
       <${TableCell} class="text-right max-sm:order-4 max-sm:text-left" data-label="Rating">
         ${b.game ? html`<${GameRating} game=${b.game} />` : html`<span class="text-muted-foreground italic">…</span>`}
       <//>`}
-    <${TableCell} class="max-sm:order-5 max-sm:text-right" data-label="Variant">${b.variant} <${Chip} class=${ENGINE[b.eval]}>${b.eval}<//><//>
+    <${TableCell} class="max-sm:order-5 max-sm:text-right" data-label="Variant">${b.variant} <${Chip} class=${cn("ml-1", ENGINE[b.eval])}>${b.eval}<//><//>
     <${TableCell} class="text-right font-mono tabular-nums max-sm:order-6 max-sm:text-left" data-label="knps/core">${fmt(b.knps)}<//>
     <${TableCell} class="max-sm:order-2 max-sm:text-right"><${GameLink} id=${b.id} title=${b.example && "Example ID, not a real game"} /><//>
   <//>`;

@@ -10,7 +10,7 @@ import { html } from "../html.js";
 import { cn } from "../lib/utils.js";
 import { positions } from "../store.js";
 import { dayLabel, hm, minutes } from "../format.js";
-import { Empty, Legend, Note, Panel, Seg } from "./common.js";
+import { Empty, Legend, Panel, Seg } from "./common.js";
 import { Button } from "./ui/button.js";
 import { TIP } from "./Spark.js";
 
@@ -211,7 +211,7 @@ function options(el, s, c, tip) {
       { stroke: c.muted, font: FONT, space: 80, grid: { show: false }, ticks: { stroke: c.line, width: 1, size: 4 } },
       { stroke: c.muted, font: FONT, size: 36, gap: 4, grid: { stroke: c.line, width: 1 }, ticks: { show: false } },
     ],
-    series: [{}, { stroke: c.accent, width: 1.6, fill: rgba(c.accent, 0.14), points: { show: false } }],
+    series: [{}, { stroke: c.accent, width: 1.25, fill: rgba(c.accent, 0.08), points: { show: false } }],
     hooks: {
       drawClear: [(u) => drawBands(u, s, c)],
       draw: [(u) => drawOverlay(u, s, c)],
@@ -278,6 +278,7 @@ function Plot({ data, zoomed, onView, api }) {
     tabindex="0"
     role="img"
     aria-label="Positions per minute. Use the left and right arrow keys to read values, Escape to reset the zoom."
+    title="Drag to zoom; double-click or Esc to reset"
     onKeyDown=${onKey}
     onBlur=${() => api.current?.setCursor({ left: -10, top: -10 })}
   >
@@ -317,10 +318,6 @@ export function PositionsChart() {
               ["bg-crit/35", "stopped"],
             ]}
           />
-          <${Note}>
-            Hover, tap or use the arrow keys to read a value. Drag across the chart to zoom in; double-click or press Esc
-            to zoom back out.
-          <//>
         `}
   <//>`;
 }

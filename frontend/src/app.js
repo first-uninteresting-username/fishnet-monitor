@@ -13,7 +13,7 @@ import { PlayerStats, TopGames } from "./components/Players.js";
 import { Batches } from "./components/Batches.js";
 
 function Footer() {
-  return html`<footer class="text-muted-foreground flex flex-wrap gap-x-4.5 gap-y-1.5 text-xs [&_code]:font-mono">
+  return html`<footer class="text-muted-foreground flex border-t pt-3 flex-wrap gap-x-4.5 gap-y-1.5 text-xs [&_code]:font-mono">
     <span>Reads fishnet's log and <code>/data/fishnet-stats</code>. Never shows your key.</span>
     <span>
       ${lookup.value.enabled
@@ -26,21 +26,21 @@ function Footer() {
 
 // `top` is rendered above the header (the demo puts its controls there).
 export function App({ top }) {
-  return html`<div class="mx-auto grid max-w-[1240px] gap-4 pt-4 pb-10 pr-[max(16px,env(safe-area-inset-right,0px))] pl-[max(16px,env(safe-area-inset-left,0px))]">
+  return html`<div class="mx-auto grid max-w-[1240px] gap-5 pt-5 pb-10 pr-[max(16px,env(safe-area-inset-right,0px))] pl-[max(16px,env(safe-area-inset-left,0px))]">
     ${top}
     <${Header} />
     <${StallStrip} />
     <${FatalStrip} />
     <${StaleStrip} />
-    <div class=${cn("grid gap-4", stale.value && "*:opacity-55 *:saturate-30")}>
+    <div class=${cn("grid gap-7", stale.value && "*:opacity-55 *:saturate-30")}>
       <${Tiles} />
       <${PositionsChart} />
-      <div class="grid grid-cols-1 gap-4 min-[860px]:grid-cols-2">
+      <div class="grid grid-cols-1 gap-x-10 gap-y-7 min-[860px]:grid-cols-2">
         <${Variants} />
         <${Problems} />
       </div>
       ${lookup.value.enabled &&
-      html`<div class="grid grid-cols-1 gap-4 min-[860px]:grid-cols-2">
+      html`<div class="grid grid-cols-1 gap-x-10 gap-y-7 min-[860px]:grid-cols-2">
         <${TopGames} />
         <${PlayerStats} />
       </div>`}

@@ -5,8 +5,7 @@ import { html } from "../html.js";
 import { lookup, now, players, topGames } from "../store.js";
 import { fmt, hms, share, when } from "../format.js";
 import { cn } from "../lib/utils.js";
-import { Bar, cardsTable, Dot, Empty, headClass, Note, Panel, Seg, Wing } from "./common.js";
-import { Badge } from "./ui/badge.js";
+import { Bar, cardsTable, Empty, headClass, Note, Panel, Seg, Wing } from "./common.js";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table.js";
 
 // Player title (GM, IM, …), copper like lichess's title tag.
@@ -15,17 +14,17 @@ export const TITLE = "text-title font-mono text-[11.5px] font-semibold";
 const Side = ({ side }) =>
   html`<i class=${cn("border-muted-foreground size-2 shrink-0 rounded-[2px] border", side === "w" ? "bg-side-w" : "bg-side-b")}></i>`;
 
-// A small tag for speed, variant and engine.
+// Speed, variant and engine: plain small mono text, no box.
 export const Chip = ({ class: cls, children }) =>
-  html`<${Badge} variant="secondary" class=${cn("text-muted-foreground rounded-sm px-1.5 py-px font-mono text-[11.5px] font-normal", cls)}>${children}<//>`;
+  html`<span class=${cn("text-muted-foreground font-mono text-xs", cls)}>${children}</span>`;
 
 const PENDING = "text-muted-foreground text-[12.5px] italic";
 
 export function Player({ p, side }) {
   if (p.ai) {
-    return html`<span class="inline-flex flex-wrap items-center gap-1.5"><${Side} side=${side} /><span class="text-muted-foreground italic">Stockfish level ${p.ai}</span></span>`;
+    return html`<span class="inline-flex items-center gap-1.5 whitespace-nowrap"><${Side} side=${side} /><span class="text-muted-foreground italic">Stockfish level ${p.ai}</span></span>`;
   }
-  return html`<span class="inline-flex flex-wrap items-center gap-1.5">
+  return html`<span class="inline-flex items-center gap-1.5 whitespace-nowrap">
     <${Side} side=${side} />
     ${p.title && html`<span class=${TITLE}>${p.title}</span>`}
     <span>${p.name}</span>
@@ -51,10 +50,7 @@ export function GameRating({ game }) {
 const RATING = "text-[15px] font-semibold tabular-nums";
 
 const Lookup = ({ tone, children }) =>
-  html`<div class="bg-muted text-muted-foreground flex items-start gap-2 rounded-md px-2.5 py-1.5 text-xs [&_b]:font-semibold [&_b]:text-(--tone)" style=${`--tone: var(--${tone})`}>
-    <${Dot} class="mt-[5px] size-[7px]" />
-    ${children}
-  </div>`;
+  html`<p class="text-muted-foreground text-xs [&_b]:font-semibold [&_b]:text-(--tone)" style=${`--tone: var(--${tone})`}>${children}</p>`;
 
 function LookupStatus() {
   const l = lookup.value;
@@ -113,7 +109,7 @@ export function TopGames() {
                 <${TableCell} class="max-sm:order-3 max-sm:col-span-full"><${Pair} game=${g} /><//>
                 <${TableCell} class="text-right max-sm:order-2"><span class=${RATING}>${fmt(g.rating)}</span><//>
                 <${TableCell} class="max-sm:order-4" data-label="Speed">
-                  <${Chip}>${g.speed}<//>${g.variant && html` <${Chip}>${g.variant}<//>`}
+                  <${Chip}>${g.speed}${g.variant && ` · ${g.variant}`}<//>
                 <//>
                 <${TableCell} class="font-mono tabular-nums max-sm:order-5 max-sm:text-right" data-label="Analysed">${when(g.at, t)}<//>
                 <${TableCell} class="max-sm:order-6" data-label="Game"><${GameLink} id=${g.id} title=${g.example && "Example ID, not a real game"} /><//>
@@ -122,16 +118,13 @@ export function TopGames() {
           <//>
         <//>`
       : html`<${Empty} title="No ranked games yet.">Games appear here once lichess has sent back their players.<//>`}
-    <${Note}>
-      Game rating is the average of both players' ratings when the game was played. Games against the computer aren't
-      ranked.
-    <//>
+    <${Note}>Rating is the average of both players' ratings at the time. Games against the computer aren't ranked.<//>
   <//>`;
 }
 
 function PStat({ label, all, today, total }) {
-  return html`<div class="bg-muted grid gap-0.5 rounded-lg px-3 py-2.5">
-    <div class="text-muted-foreground flex items-center gap-1.5 text-[11px] tracking-wider uppercase">${label}</div>
+  return html`<div class="grid gap-0.5">
+    <div class="text-muted-foreground flex items-center gap-1.5 text-xs">${label}</div>
     <div class="text-2xl font-semibold tabular-nums">
       ${fmt(all)}<small class="text-muted-foreground ml-1 text-xs font-medium">all-time</small>
     </div>
@@ -143,7 +136,7 @@ export function PlayerStats() {
   const p = players.value;
   const max = Math.max(1, ...p.byTitle.map(([, n]) => n));
   return html`<${Panel} title="Titled players and supporters" hint="games with at least one">
-    <div class="grid grid-cols-2 gap-2.5 max-[440px]:grid-cols-1">
+    <div class="grid grid-cols-2 gap-x-6 gap-y-3 max-[440px]:grid-cols-1">
       <${PStat} label=${html`<span class=${TITLE}>GM</span>Titled player`} all=${p.all.titled} today=${p.today.titled} total=${p.all.looked} />
       <${PStat} label=${html`<${Wing} label=${false} />Lichess supporter`} all=${p.all.patron} today=${p.today.patron} total=${p.all.looked} />
     </div>

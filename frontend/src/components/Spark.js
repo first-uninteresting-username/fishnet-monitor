@@ -1,5 +1,5 @@
 // Tile sparkline: drawn at its real pixel size (no stretched strokes), with a
-// smooth line, a dot on the latest point, and a hover/touch/arrow-key readout.
+// smooth line (no fill), a dot on the latest point, and a hover/touch/arrow-key readout.
 // The series carries no timestamps; its points are taken as evenly spaced over
 // the last `hours` hours, the latest at the right edge.
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -84,7 +84,6 @@ export function Spark({ vals, format = String, label = "", hours = 24, color = "
   const last = n - 1;
   const cur = hot ?? last;
   const tipX = ok ? Math.min(Math.max(x(cur), 46), w - 46) : 0;
-  const gid = `g${label.replace(/\W/g, "")}`;
 
   return html`<div
     class="focus-visible:outline-ring relative -mx-1 mt-1 h-12 cursor-crosshair touch-pan-y rounded-md outline-offset-2 focus-visible:outline-2"
@@ -100,13 +99,6 @@ export function Spark({ vals, format = String, label = "", hours = 24, color = "
   >
     ${ok &&
     html`<svg class="block overflow-visible" width=${w} height=${H} viewBox=${`0 0 ${w} ${H}`} aria-hidden="true">
-        <defs>
-          <linearGradient id=${gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color=${color} stop-opacity=".28" />
-            <stop offset="1" stop-color=${color} stop-opacity="0" />
-          </linearGradient>
-        </defs>
-        <path d=${`${path}L${x(last).toFixed(1)},${H}L${x(0).toFixed(1)},${H}Z`} fill=${`url(#${gid})`} />
         <path d=${path} fill="none" stroke=${color} stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" />
         ${hot != null && html`<line class="stroke-muted-foreground [stroke-dasharray:2_2]" stroke-width="1" x1=${x(hot)} x2=${x(hot)} y1="0" y2=${H} />`}
         <circle class="stroke-card" stroke-width="2" cx=${x(cur)} cy=${y(vals[cur])} r=${hot != null ? 4 : 3} fill=${color} />
