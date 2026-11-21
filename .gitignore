@@ -8,3 +8,6 @@ devenv.local.yaml
 
 # pre-commit
 .pre-commit-config.yaml
+
+# Playwright MCP screenshots and snapshots
+.playwright-mcp/
