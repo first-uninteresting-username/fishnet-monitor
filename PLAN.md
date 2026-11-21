@@ -69,8 +69,12 @@ container (uid 10001)
   when it exits. Act as a minimal init and reap zombies (or use `tini`).
 - **Changed defaults compared to upstream:**
   - `STATS_FILE=/data/fishnet-stats` and `VOLUME /data`, so the totals survive restarts.
-  - Optional `FISHNET_VERBOSE=1` to get the progress line (queue depth). The monitor
-    drops the `D:` noise from the forwarded log unless `FORWARD_DEBUG=1` is set.
+  - No `FISHNET_VERBOSE`: upstream's entrypoint drops extra arguments (it ends in
+    `exec /fishnet "${args[@]}"`, no `"$@"`) and fishnet has no env var for `-v`. For
+    the progress line (queue depth), override the command and call fishnet directly:
+    `<image> run -- /fishnet --no-conf --key-file /key --stats-file /data/fishnet-stats -v`.
+    The monitor drops the `D:` noise from the forwarded log unless `FORWARD_DEBUG=1`
+    is set.
 
 ### Metrics (first set)
 
@@ -323,10 +327,10 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
       `docker build` fails. Move the three files the demo needs to `src/demo/`
       (the tests then read them from there), or allow-list and copy just those three
       files. Moving them is cleaner: the image build shouldn't depend on `tests/`.
-   2. **`FISHNET_VERBOSE=1`.** Not implemented yet. Read the upstream
-      `docker-entrypoint.sh` first to see how extra arguments reach fishnet (its
-      `"$@"`), then have `run` add `-v` to the child's arguments when the variable is
-      set, and add it to `Config` with a test. Default stays off.
+   2. **`FISHNET_VERBOSE=1`.** *(Dropped.)* Upstream's `docker-entrypoint.sh` has no
+      `"$@"`, so a `-v` added to its arguments never reaches fishnet, and fishnet has
+      no env var for it. Verbose output needs the command override described under
+      [Architecture](#architecture).
    3. **Stopping.** `docker stop` sends SIGTERM, which makes fishnet drop its current
       batches at once; that's what upstream does too, so keep it. Note in a
       `Dockerfile` comment that `--stop-signal SIGINT --stop-timeout 60` gives a
@@ -342,7 +346,7 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    test. A local build, when one is needed, uses the host's podman (`podman build .`),
    not a runtime added to devenv.
 
-   Decisions this phase settles: verbose stays off by default, and the port stays 9465
+   Decisions this phase settles: verbose has no switch (step 2), and the port stays 9465
    unless it collides with something on the host (see the open questions). The image
    name waits for phase 5.
 5. **CI.** GitHub Actions:
@@ -368,6 +372,6 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
 - **One client or several?** The plan covers one dashboard per container. A single
   dashboard showing several machines would need a separate aggregator, which is a
   different project.
-- **Verbose mode on by default?** It's needed for queue depth, but it makes fishnet log
-  more. I'd leave it off by default.
+- **Verbose mode:** settled in phase 4. There's no switch; verbose needs the command
+  override (see [Architecture](#architecture)).
 - **Port:** `9465` is a placeholder; check it doesn't collide with anything on the host.
