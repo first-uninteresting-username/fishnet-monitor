@@ -1,0 +1,59 @@
+name: Pages
+
+# Publishes the dashboard demo (demo/, the real frontend with mock data, no
+# backend) to GitHub Pages. The site keeps the repository layout, because
+# demo/index.html loads ../frontend/; the root redirects to demo/.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - demo/**
+      - frontend/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/configure-pages@v6
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp -r demo _site/demo
+          # Only what the page loads (like build.rs embeds).
+          rsync -a --exclude tailwind.css --exclude vendor.lock --exclude '*.md' \
+            frontend/ _site/frontend/
+          cat >_site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>fishnet-monitor demo</title>
+          <meta http-equiv="refresh" content="0; url=demo/">
+          <a href="demo/">fishnet-monitor demo</a>
+          HTML
+
+      - uses: actions/upload-pages-artifact@v5
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
