@@ -187,8 +187,37 @@ pub struct State {
 
 impl State {
     pub fn new(now: SystemTime) -> State {
-        let _ = now;
-        todo!("fragment: state")
+        State {
+            started_at: now,
+            child_running: false,
+            exit_code: None,
+            stopped_at: None,
+            run_state: RunState::Starting,
+            fatal: false,
+            fatal_line: None,
+            fatal_at: None,
+            rejected_reason: None,
+            version: None,
+            endpoint: None,
+            cores: None,
+            queue_pending: None,
+            nnue_knps_per_core: None,
+            totals: Totals::default(),
+            totals_source: TotalsSource::None,
+            batches_finished: BTreeMap::new(),
+            knps_histogram: Histogram::default(),
+            last_knps_per_core: None,
+            last_batch_at: None,
+            last_activity_at: now,
+            idle_until: None,
+            stopping_batches: 0,
+            log_lines: BTreeMap::new(),
+            unparsed_lines: 0,
+            engine_errors: 0,
+            engine_timeouts: 0,
+            batches_aborted: 0,
+            stall_alerted: false,
+        }
     }
 
     /// Updates the state from one parsed line. Returns an alert when the
