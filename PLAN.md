@@ -241,6 +241,29 @@ on the public lichess API.
 The Docker `HEALTHCHECK` calls `fishnet-monitor healthcheck`, because the base image
 has no curl.
 
+### Webhooks
+
+The monitor can push a JSON notification to any HTTP endpoint (ntfy, Slack-compatible
+receivers, a home-automation hook, and so on) when fishnet needs attention.
+
+- **Setting:** `WEBHOOK_URL`. Unset means no webhook calls at all.
+- **Events:**
+  - `fatal`: the "Stopping queue." line, or fishnet exits with an error.
+  - `stall`: the stall timeout (`STALL_TIMEOUT`) has passed with no batch and no idle line.
+    It fires once per stall and re-arms after the next batch or idle line.
+- **Payload:** `POST` with `Content-Type: application/json`:
+  `{"event": "fatal" | "stall", "time": <RFC 3339>, "host": <MONITOR_HOST_NAME or hostname>,
+  "state": <current state>, "message": <the triggering log line or a short description>}`.
+  The fishnet key never goes into the payload.
+- **Delivery:** the request runs on its own task with a 10 s timeout. It retries 3 times
+  with backoff (1 s, 5 s, 30 s). A final failure logs a `W:`-style line in the monitor's
+  own problems list and doesn't block or crash anything. Delivery is best-effort; the
+  dashboard and `/healthz` stay the source of truth.
+- **Scope:** only these two events for now. More events, or a different body format per
+  receiver, can be added later if needed.
+- **Tests:** against a mock HTTP receiver (fire once per stall, re-arm, retries, timeout,
+  no key in the payload, unset `WEBHOOK_URL` sends nothing).
+
 ## Technology
 
 - **Monitor: Rust**, built as a static musl binary. That's the same toolchain as
@@ -261,7 +284,8 @@ has no curl.
    `tests/fixtures/`. Write the line parser and unit tests for every line type above,
    including the variant/hce/`? nps` cases and unknown lines.
 2. **Supervisor + HTTP.** Spawn the child, forward the output, handle signals and exit
-   codes, read the stats file, and serve `/api/status`, `/metrics` and `/healthz`.
+   codes, read the stats file, serve `/api/status`, `/metrics` and `/healthz`, and send
+   the [webhooks](#webhooks) for `fatal` and `stall`.
 3. **History + dashboard.** Ring buffers and the snapshot file, `/api/history`,
    `/api/events` (SSE), then the embedded page: header and tiles first, then charts,
    recent batches and problems. Vendor the frontend libraries with
@@ -284,8 +308,6 @@ has no curl.
      parsed
    - publish to GHCR
    - rerun the fixture tests on every Renovate base-image bump
-6. **Optional extras** (only if wanted): ntfy push on a fatal stop or a stall,
-   CSV export of the history, alert-rule examples for Prometheus users.
 
 ## Open questions
 
