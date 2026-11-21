@@ -317,38 +317,31 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    titled/supporter counts, tested against a mock export endpoint (batching, 429
    backoff, missing games, games against the computer, bots, titled players on both
    sides, supporters).
-4. **Image.** Dockerfile, healthcheck, defaults, `VOLUME /data`. No README changes.
-   A first `Dockerfile` already exists (two stages, pinned digests, OCI labels, `/data`
-   owned by 10001, `ENV` defaults, `HEALTHCHECK`, the monitor as `ENTRYPOINT`). What's
-   left, in order:
-   1. **Fix the build.** `src/demo.rs` embeds `tests/fixtures/{normal,problems}.log` and
-      `games.ndjson` with `include_str!`, but `.dockerignore` and the builder stage only
-      let `Cargo.toml`, `Cargo.lock`, `build.rs`, `src/` and `frontend/` in, so
-      `docker build` fails. Move the three files the demo needs to `src/demo/`
-      (the tests then read them from there), or allow-list and copy just those three
-      files. Moving them is cleaner: the image build shouldn't depend on `tests/`.
-   2. **`FISHNET_VERBOSE=1`.** *(Dropped.)* Upstream's `docker-entrypoint.sh` has no
-      `"$@"`, so a `-v` added to its arguments never reaches fishnet, and fishnet has
-      no env var for it. Verbose output needs the command override described under
-      [Architecture](#architecture).
-   3. **Stopping.** `docker stop` sends SIGTERM, which makes fishnet drop its current
-      batches at once; that's what upstream does too, so keep it. Note in a
-      `Dockerfile` comment that `--stop-signal SIGINT --stop-timeout 60` gives a
-      graceful stop that finishes the batches first. Check that the
-      monitor still writes the history snapshot when the child exits on SIGTERM.
-   4. **Volume permissions.** A named volume inherits `/data`'s owner (10001). A bind
-      mount doesn't: if the host directory isn't writable by 10001, fishnet can't write
-      the stats file and the snapshot fails. Make the monitor say so once at startup
-      (a `W:` line naming the path and the uid), so the cause is in the log.
-   5. **`hadolint`** passes (the pre-commit hook already runs it).
+4. **Image.** *(Done.)* Two-stage `Dockerfile` (static musl build, then the pinned
+   upstream image plus the binary), OCI labels, `/data` owned by 10001 as a `VOLUME`,
+   `ENV` defaults, `HEALTHCHECK` through `fishnet-monitor healthcheck`, and the
+   monitor as `ENTRYPOINT` with the upstream entrypoint as `CMD`. No README changes.
+   - **Build:** the demo's fixtures (`normal.log`, `problems.log`, `games.ndjson`)
+     live in `src/demo/`, so the image build only needs `src/` and `frontend/`; the
+     fixture and lookup tests read them from there.
+   - **`FISHNET_VERBOSE`:** dropped. Upstream's `docker-entrypoint.sh` has no `"$@"`,
+     so a `-v` added to its arguments never reaches fishnet, and fishnet has no env
+     var for it. Verbose output needs the command override described under
+     [Architecture](#architecture).
+   - **Stopping:** `docker stop` sends SIGTERM and fishnet drops its batches at once,
+     like upstream. A `Dockerfile` comment gives `--stop-signal SIGINT
+     --stop-timeout 60` for a graceful stop. `tests/shutdown.rs` checks that the
+     history snapshot is still saved on SIGTERM and the exit code is 143.
+   - **Volume permissions:** at startup the monitor probes the directories of
+     `STATS_FILE` and `HISTORY_FILE` and logs one `W:` line (also in the problems
+     list) per directory it can't write, naming the path, the uid and the `chown`
+     fix, so a bind mount with the wrong owner shows in the log.
+   - `hadolint` passes.
 
-   The image isn't tested by hand in this phase; the checks below are phase 5's smoke
-   test. A local build, when one is needed, uses the host's podman (`podman build .`),
-   not a runtime added to devenv.
-
-   Decisions this phase settles: verbose has no switch (step 2), and the port stays 9465
-   unless it collides with something on the host (see the open questions). The image
-   name waits for phase 5.
+   The image isn't tested by hand in this phase; that's phase 5's smoke test. A local
+   build, when one is needed, uses the host's podman (`podman build .`), not a
+   runtime added to devenv. The port stays 9465 unless it collides with something on
+   the host (see the open questions); the image name waits for phase 5.
 5. **CI.** GitHub Actions:
    - run the tests
    - build the image, multi-arch amd64/arm64 like upstream
