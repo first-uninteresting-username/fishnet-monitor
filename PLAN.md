@@ -49,7 +49,7 @@ container (uid 10001)
    │    stdout/stderr ──► line parser ──► metrics state
    │                  └─► forwarded to container stdout (unchanged, D: lines optional)
    ├─ watches $STATS_FILE (JSON) ──► metrics state
-   ├─ history store (ring buffers, snapshotted to /data/history.json)
+   ├─ history store (minute / hour / all-time tiers, snapshotted to /data/history.json)
    ├─ game lookup: batched game IDs ──► lichess.org/api/games/export/_ids ──► ratings
    └─ HTTP :9465
         /              dashboard (static HTML/JS/CSS embedded in the binary)
@@ -98,17 +98,27 @@ container (uid 10001)
 
 The monitor has to keep history itself, because no Prometheus is assumed.
 
-**History store**
-- Per-minute buckets kept for 7 days: batches, positions, nodes, average knps/core,
-  idle seconds. About 10k rows, so it fits easily in memory.
-- The last 200 finished batches: time, game URL, variant, eval, knps/core.
-- The last 200 `W:`/`E:` lines.
-- The top 50 games by rating, all-time (see [Game lookup](#game-lookup)). This list is
-  not cut off after 7 days.
-- The per-minute buckets also count looked-up, titled and supporter games. All-time
-  totals for these (including one per title) are kept separately and never expire.
-- Snapshotted to `/data/history.json` every minute and on shutdown, so charts survive
-  a restart. The volume and file format are ours; fishnet never touches them.
+**History store** (`src/history.rs`), in three tiers:
+- **Minute buckets, 7 days:** batches, positions, nodes, knps/core by engine, NNUE
+  Mnps, idle / stopped / quiet seconds, batches by variant, and looked-up, titled and
+  supporter games. About 10k rows. The charts up to 7 days, the "today" counts, the
+  sparklines and the 24 h averages come from these.
+- **Hour buckets, 7 weeks:** the same counts without speed and variants, for the
+  7-week chart.
+- **All time, never expires:** only small aggregates: counted batches, positions and
+  nodes, batches by variant, game-lookup counts (titled, per title, supporters, bots,
+  missing) and the top 50 games by rating (see [Game lookup](#game-lookup)).
+- Recent detail besides the buckets: the last 200 finished batches (time, game URL,
+  variant, eval, knps/core, lookup result), the last 200 `W:`/`E:` lines, and the 20
+  best games of each of the last 8 days (for the 24 h / 7 d top lists).
+- Positions and nodes per minute come from changes in the stats file (the summary
+  line without one). Time is attributed every 5 s to busy, idle, quiet (no batch and
+  no idle line for 3 min) or stopped; minutes with no bucket inside the history count
+  as stopped.
+- Snapshotted to `HISTORY_FILE` (`/data/history.json` in the image) every minute and
+  on shutdown, through a temporary file and a rename, so charts survive a restart. An
+  unreadable file is moved aside to `history.json.bad`. The volume and file format are
+  ours; fishnet never touches them.
 
 **Page** (one screen, works on a phone)
 - **Header:** state badge (running / idle / stopping / stopped / fatal), health,
@@ -121,7 +131,7 @@ The monitor has to keep history itself, because no Prometheus is assumed.
   is reconnecting).
 - **Stat tiles:** batches, positions and nodes today and all-time, current knps/core
   with the 24 h average split by engine (nnue / hce), NNUE nps.
-- **Charts:** positions per minute (1 h / 6 h / 24 h / 7 d), full width and interactive:
+- **Charts:** positions per minute (1 h / 6 h / 24 h / 7 d / 7 w), full width and interactive:
   a hover/keyboard tooltip with the value and how it compares to the average, drag to
   zoom, double-click or Esc to reset, idle stretches shaded, and avg / peak / idle time
   for the visible window. Idle stretches and stopped periods are shaded in this chart,
@@ -145,7 +155,9 @@ The monitor has to keep history itself, because no Prometheus is assumed.
   example the version waits for the first 2-minute summary). With `GAME_LOOKUP=0` the
   player panels and columns are hidden.
 - **Live updates:** the page loads `/api/status` and `/api/history` once, then follows
-  `/api/events`. It doesn't poll.
+  `/api/events`. It doesn't poll. The stream has four events (`status`, `live`,
+  `lookup`, `charts`), each carrying the latest state of its part of the page; all
+  four are sent on connect, then each again when it changes.
 
 **Frontend stack:** Preact + htm + `@preact/signals` (~15 KB together) with no build
 step, plus one small chart library (uPlot, ~50 KB). All of them are vendored as ES
@@ -225,11 +237,14 @@ on the public lichess API.
 - **Caveat:** the export shows a player's title and supporter status as of the lookup,
   not as of the game. Because the lookup runs within a minute or two of the analysis,
   the difference doesn't matter in practice.
+- **Errors:** a failed request puts its ids back, waits a minute and adds a warning to
+  the problems list; the status line shows it.
 - **Settings:** `GAME_LOOKUP=0` turns it off; the dashboard then hides the top-games
   and player panels and the player columns. `LICHESS_API` (default `https://lichess.org`) sets the host.
   IDs from batches whose URL host doesn't match it are not looked up, so a dev
   `ENDPOINT` doesn't send unrelated IDs to lichess.org.
-- **Demo mode** reads ratings from a fixture file and makes no network calls.
+- **Demo mode** reads games from `tests/fixtures/games.ndjson` and makes no network
+  calls.
 
 ### Health
 
@@ -286,15 +301,15 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
 2. **Supervisor + HTTP.** Spawn the child, forward the output, handle signals and exit
    codes, read the stats file, serve `/api/status`, `/metrics` and `/healthz`, and send
    the [webhooks](#webhooks) for `fatal` and `stall`.
-3. **History + dashboard.** Ring buffers and the snapshot file, `/api/history`,
+3. **History + dashboard.** *(Done.)* Ring buffers and the snapshot file, `/api/history`,
    `/api/events` (SSE), then the embedded page: header and tiles first, then charts,
    recent batches and problems. Vendor the frontend libraries with
    `scripts/vendor-frontend.sh`: it reads pinned versions and SHA-256 sums from
    `frontend/vendor.lock`, downloads the ES module builds into `frontend/vendor/`,
    and fails on a checksum mismatch. Renovate bumps the versions through a custom
    manager, and a workflow runs the script with `--update` on its PRs. Test the UI with a fake-log mode
-   (`fishnet-monitor demo`) that replays the fixtures, so you can work on the UI
-   without a real fishnet key. Then add the game lookup, the top-games panel and the
+   (`fishnet-monitor demo`) that replays the fixtures on top of 7 weeks of generated
+   history, so you can work on the UI without a real fishnet key. Then add the game lookup, the top-games panel and the
    titled/supporter counts, tested against a mock export endpoint (batching, 429
    backoff, missing games, games against the computer, bots, titled players on both
    sides, supporters).
@@ -312,8 +327,6 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
 ## Open questions
 
 - **Registry and image name:** GHCR `ghcr.io/<user>/fishnet-monitor`?
-- **History length:** is 7 days at 1-minute resolution enough, or do you want longer
-  history with coarser buckets (for example hourly for a year)?
 - **One client or several?** The plan covers one dashboard per container. A single
   dashboard showing several machines would need a separate aggregator, which is a
   different project.
