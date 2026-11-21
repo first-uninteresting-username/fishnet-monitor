@@ -409,8 +409,19 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
      sees the new fishnet's real output before the PR merges. When it fails, capture
      the new lines into `tests/fixtures/` (see its README) and fix the parser in the
      same PR. Renovate's config needed no change.
-   - **Branch protection** (the `test` and `image` jobs as required checks on `main`)
-     is a repository setting and is left to the user.
+   - **Demo on GitHub Pages:** `.github/workflows/pages.yml` publishes `demo/` (the
+     real frontend with mock data, no backend) to
+     <https://first-uninteresting-username.github.io/fishnet-monitor/> on every push
+     to `main` that changes `demo/` or `frontend/`. The site keeps the repository
+     layout, because `demo/index.html` loads `../frontend/`; the root redirects to
+     `demo/`.
+   - **Branch protection: not enabled.** Required checks would block the direct
+     pushes to `main` this repository uses, and they would never report on the
+     automated PRs: `update-devenv-lock.yml` opens its PR and
+     `refresh-vendored-frontend.yml` pushes onto Renovate's branches with
+     `GITHUB_TOKEN`, which doesn't trigger workflows, so CI never runs on their last
+     commit. Turning it on needs a GitHub App or PAT token for those two workflows
+     (or a ruleset that only applies to pull requests) first.
 
 ## Decisions
 
