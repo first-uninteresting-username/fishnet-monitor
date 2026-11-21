@@ -112,10 +112,15 @@ The monitor has to keep history itself, because no Prometheus is assumed.
 - **Live updates:** the page loads `/api/status` and `/api/history` once, then follows
   `/api/events`. It doesn't poll.
 
-**Frontend stack:** plain HTML, CSS and JS with no build step, plus one small vendored
-chart library (uPlot, ~50 KB). The files are embedded in the binary (`rust-embed` or
-`include_str!`), so the image needs no Node and has no extra files. Dark and light
-themes follow `prefers-color-scheme`.
+**Frontend stack:** Preact + htm + `@preact/signals` (~15 KB together) with no build
+step, plus one small chart library (uPlot, ~50 KB). All of them are vendored as ES
+modules and loaded through an import map, so there's no Node, bundler or
+`package.json`. Components use htm's tagged templates instead of JSX. Each SSE event
+updates a signal, and only the parts of the page that read it re-render. uPlot charts
+are wrapped in small components that call `setData` instead of re-rendering. The files
+are embedded in the binary (`rust-embed` or `include_str!`), so the image has no extra
+files. Dark and light themes follow `prefers-color-scheme`. If the UI ever outgrows
+this (TypeScript, several pages), the components move to Vite + JSX unchanged.
 
 **Security:** the dashboard is read-only and has no login. It never shows the fishnet
 key, and the key never goes into history, `/api/*` or the forwarded log. The listen
@@ -155,7 +160,11 @@ has no curl.
    codes, read the stats file, and serve `/api/status`, `/metrics` and `/healthz`.
 3. **History + dashboard.** Ring buffers and the snapshot file, `/api/history`,
    `/api/events` (SSE), then the embedded page: header and tiles first, then charts,
-   recent batches and problems. Test it with a fake-log mode
+   recent batches and problems. Vendor the frontend libraries with
+   `scripts/vendor-frontend.sh`: it reads pinned versions and SHA-256 sums from
+   `frontend/vendor.lock`, downloads the ES module builds into `frontend/vendor/`,
+   and fails on a checksum mismatch. Renovate can't see these files, so bump the
+   versions by hand and rerun the script. Test the UI with a fake-log mode
    (`fishnet-monitor demo`) that replays the fixtures, so you can work on the UI
    without a real fishnet key.
 4. **Image.** Dockerfile, healthcheck, defaults, `VOLUME /data`, README usage section
