@@ -8,6 +8,8 @@ use std::{
 
 /// Default for `MONITOR_LISTEN`.
 const DEFAULT_LISTEN: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 9465));
+/// Default for `LICHESS_API`.
+pub const DEFAULT_LICHESS_API: &str = "https://lichess.org";
 /// Default for `STALL_TIMEOUT`.
 const DEFAULT_STALL_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
@@ -25,6 +27,11 @@ pub struct Config {
     pub forward_debug: bool,
     /// `HISTORY_FILE`; unset or empty keeps the history in memory only.
     pub history_file: Option<PathBuf>,
+    /// `GAME_LOOKUP=0` turns the game lookup off. Default on.
+    pub game_lookup: bool,
+    /// `LICHESS_API`, default `https://lichess.org`: where games are looked
+    /// up, and the only host whose games are.
+    pub lichess_api: String,
     /// `WEBHOOK_URL`; unset or empty disables webhooks.
     pub webhook_url: Option<String>,
     /// `MONITOR_HOST_NAME`, else `HOSTNAME`, else the content of
@@ -64,6 +71,17 @@ impl Config {
             None => false,
         };
 
+        let game_lookup = match get("GAME_LOOKUP") {
+            Some(value) => parse_bool("GAME_LOOKUP", &value)?,
+            None => true,
+        };
+        let lichess_api = get("LICHESS_API")
+            .map(|v| v.trim_end_matches('/').to_owned())
+            .unwrap_or_else(|| DEFAULT_LICHESS_API.to_owned());
+        if !lichess_api.starts_with("http://") && !lichess_api.starts_with("https://") {
+            return Err(format!("LICHESS_API: not an http(s) URL \"{lichess_api}\""));
+        }
+
         let host_name = get("MONITOR_HOST_NAME")
             .or_else(|| get("HOSTNAME"))
             .or_else(system_host_name)
@@ -74,6 +92,8 @@ impl Config {
             stall_timeout,
             stats_file: get("STATS_FILE").map(PathBuf::from),
             history_file: get("HISTORY_FILE").map(PathBuf::from),
+            game_lookup,
+            lichess_api,
             forward_debug,
             webhook_url: get("WEBHOOK_URL"),
             host_name,
@@ -141,6 +161,8 @@ mod tests {
         assert_eq!(config.stall_timeout, Duration::from_secs(15 * 60));
         assert_eq!(config.stats_file, None);
         assert_eq!(config.history_file, None);
+        assert!(config.game_lookup);
+        assert_eq!(config.lichess_api, "https://lichess.org");
         assert!(!config.forward_debug);
         assert_eq!(config.webhook_url, None);
         // The fallback chain ends in "unknown", so this is never empty.
@@ -155,6 +177,8 @@ mod tests {
             ("STATS_FILE", "/var/lib/fishnet/stats.json"),
             ("FORWARD_DEBUG", "yes"),
             ("HISTORY_FILE", "/data/history.json"),
+            ("GAME_LOOKUP", "0"),
+            ("LICHESS_API", "http://localhost:8080/"),
             ("WEBHOOK_URL", "https://example.com/hook"),
             ("MONITOR_HOST_NAME", "box"),
             ("HOSTNAME", "ignored"),
@@ -172,11 +196,19 @@ mod tests {
             config.history_file,
             Some(PathBuf::from("/data/history.json"))
         );
+        assert!(!config.game_lookup);
+        assert_eq!(config.lichess_api, "http://localhost:8080");
         assert_eq!(
             config.webhook_url.as_deref(),
             Some("https://example.com/hook")
         );
         assert_eq!(config.host_name, "box");
+    }
+
+    #[test]
+    fn lichess_api_must_be_http() {
+        let err = load(&[("LICHESS_API", "lichess.org")]).unwrap_err();
+        assert!(err.starts_with("LICHESS_API:"), "{err}");
     }
 
     #[test]

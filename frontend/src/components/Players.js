@@ -65,6 +65,15 @@ function LookupStatus() {
       </span>
     <//>`;
   }
+  if (l.state === "error") {
+    return html`<${Lookup} tone="crit">
+      <span>
+        <b>Lookup failing.</b> The last request to lichess failed (see Problems); retrying in${" "}
+        <span class="tabular-nums">${Math.max(0, Math.ceil((l.retryAt - t) / 1000))} s</span>.${" "}
+        <span class="tabular-nums">${l.queued}</span> games waiting.
+      </span>
+    <//>`;
+  }
   return html`<${Lookup} tone="ok">
     ${l.lastAt
       ? html`<span>

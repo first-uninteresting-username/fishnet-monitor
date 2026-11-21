@@ -14,6 +14,7 @@ use fishnet_monitor::{
     config::Config,
     history::ProblemLevel,
     http::{self, AppState},
+    lookup::{self, Queue, Source},
     parser::{Event, Level, parse_line},
     snapshot,
     state::{Alert, State, StatusContext},
@@ -106,6 +107,14 @@ fn run(command: Vec<String>) -> ExitCode {
 async fn supervise(config: Config, command: Vec<String>) -> i32 {
     let state = Arc::new(Mutex::new(State::new(SystemTime::now())));
     let changes = Arc::new(Changes::default());
+    state.lock().unwrap().lookup = Queue::new(config.game_lookup, &config.lichess_api);
+    if config.game_lookup {
+        tokio::spawn(lookup::run(
+            Arc::clone(&state),
+            Arc::clone(&changes),
+            Source::http(&config.lichess_api),
+        ));
+    }
     if let Some(path) = &config.history_file {
         let now = SystemTime::now();
         match snapshot::load(path, now) {
@@ -222,9 +231,9 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
                 }
                 ChildEvent::Line { line, .. } => {
                     let line = parse_line(&line);
-                    if matches!(line.event, Event::BatchFinished(_))
-                        || matches!(line.level, Level::Warning | Level::Error)
-                    {
+                    if matches!(line.event, Event::BatchFinished(_)) {
+                        changes.bump_all(&[Topic::Live, Topic::Lookup]);
+                    } else if matches!(line.level, Level::Warning | Level::Error) {
                         changes.bump(Topic::Live);
                     }
                     state.apply_line(&line, now)

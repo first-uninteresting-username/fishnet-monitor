@@ -5,6 +5,7 @@ pub mod config;
 pub mod frontend;
 pub mod history;
 pub mod http;
+pub mod lookup;
 pub mod metrics;
 pub mod parser;
 pub mod snapshot;

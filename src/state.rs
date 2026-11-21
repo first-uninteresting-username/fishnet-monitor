@@ -12,7 +12,9 @@ use std::{
 use serde::Serialize;
 
 use crate::{
+    config::DEFAULT_LICHESS_API,
     history::{self, Activity, History, LookupMark, ProblemLevel},
+    lookup::{self, Queue},
     parser::{Event, Level, LogLine},
 };
 
@@ -189,6 +191,8 @@ pub struct State {
 
     /// What the dashboard shows over time; saved to `HISTORY_FILE`.
     pub history: History,
+    /// Games waiting for the lookup. Off until the caller enables it.
+    pub lookup: Queue,
 }
 
 impl State {
@@ -224,6 +228,7 @@ impl State {
             batches_aborted: 0,
             stall_alerted: false,
             history: History::new(now),
+            lookup: Queue::new(false, DEFAULT_LICHESS_API),
         }
     }
 
@@ -249,7 +254,14 @@ impl State {
 
         match &line.event {
             Event::BatchFinished(b) => {
-                self.history.record_batch(now, b, LookupMark::Skipped);
+                let (mark, dropped) = match b.target.game() {
+                    Some(game) => self.lookup.offer(game, now),
+                    None => (LookupMark::Skipped, Vec::new()),
+                };
+                for id in dropped {
+                    self.history.mark_batches(&id, LookupMark::Skipped, None);
+                }
+                self.history.record_batch(now, b, mark);
                 let key = (b.variant.as_str().to_string(), b.eval.as_str().to_string());
                 *self.batches_finished.entry(key).or_insert(0) += 1;
                 if let Some(knps) = b.knps_per_core {
@@ -357,10 +369,9 @@ impl State {
         }
     }
 
-    /// The `lookup` part of the page. The game lookup isn't built yet.
-    pub fn lookup_status(&self) -> serde_json::Value {
-        serde_json::json!({ "enabled": false, "state": "ok", "lastAt": null, "lastCount": 0,
-            "queued": 0, "missingAll": self.history.all.missing, "retryAt": null })
+    /// The `lookup` signal of the page.
+    pub fn lookup_status(&self) -> lookup::Status {
+        self.lookup.status(self.history.all.missing)
     }
 
     /// Called every few seconds: time accounting and expiry in the

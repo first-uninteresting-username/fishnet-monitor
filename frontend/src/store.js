@@ -42,7 +42,7 @@ export const problems = signal([]);
 // Game lookup status. `retryAt` is set while lichess is rate-limiting us.
 export const lookup = signal({
   enabled: true,
-  state: "ok", // ok | ratelimited
+  state: "ok", // ok | ratelimited | error
   lastAt: null,
   lastCount: 0,
   queued: 0,

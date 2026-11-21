@@ -11,8 +11,8 @@ use crate::state::{KNPS_BUCKETS, RunState, State};
 /// Content type of [`render`]'s output.
 pub const CONTENT_TYPE: &str = "text/plain; version=0.0.4; charset=utf-8";
 
-/// Renders all metrics from the table in `PLAN.md` that phase 2 has data
-/// for (everything except the game-lookup metrics).
+/// Renders all metrics from the table in `PLAN.md`. The game-lookup
+/// metrics are only there while the lookup is on.
 pub fn render(state: &State, now: SystemTime, stall_timeout: Duration) -> String {
     render_with(state, state.is_stalled(now, stall_timeout))
 }
@@ -238,7 +238,64 @@ fn render_with(state: &State, stalled: bool) -> String {
     );
     sample(&mut out, "fishnet_stalled", &[], u8::from(stalled));
 
+    if state.lookup.enabled {
+        render_lookup(&mut out, state);
+    }
+
     out
+}
+
+/// Game-lookup metrics. Request outcomes count since the monitor started;
+/// the game counts are all-time (kept in the history).
+fn render_lookup(out: &mut String, state: &State) {
+    let counts = &state.lookup.counts;
+    let all = &state.history.all;
+    counter(
+        out,
+        "fishnet_game_lookups_total",
+        "Game lookups since the monitor started: games found (ok) or not (missing), failed and rate-limited requests.",
+    );
+    for (result, n) in [
+        ("ok", counts.ok),
+        ("missing", counts.missing),
+        ("error", counts.error),
+        ("ratelimited", counts.ratelimited),
+    ] {
+        sample(out, "fishnet_game_lookups_total", &[("result", result)], n);
+    }
+    if let Some(rating) = all.top.first().and_then(|g| g.rating) {
+        gauge(
+            out,
+            "fishnet_top_game_rating",
+            "Highest game rating (average of both players) analysed so far.",
+        );
+        sample(out, "fishnet_top_game_rating", &[], rating);
+    }
+    counter(
+        out,
+        "fishnet_games_titled_total",
+        "Looked-up games with at least one titled player (bots excluded), all time.",
+    );
+    sample(out, "fishnet_games_titled_total", &[], all.titled);
+    counter(
+        out,
+        "fishnet_games_titled_by_title_total",
+        "Looked-up games per player title, all time. A GM-vs-IM game counts for both.",
+    );
+    for (title, n) in &all.by_title {
+        sample(
+            out,
+            "fishnet_games_titled_by_title_total",
+            &[("title", title.as_str())],
+            n,
+        );
+    }
+    counter(
+        out,
+        "fishnet_games_supporter_total",
+        "Looked-up games with at least one lichess supporter, all time.",
+    );
+    sample(out, "fishnet_games_supporter_total", &[], all.patron);
 }
 
 fn gauge(out: &mut String, name: &str, help: &str) {
@@ -415,6 +472,28 @@ mod tests {
         assert!(out.contains("fishnet_knps_per_core_histogram_bucket{le=\"+Inf\"} 0\n"));
         assert!(out.contains("fishnet_up 0\n"));
         assert!(out.contains("fishnet_state{state=\"starting\"} 1\n"));
+    }
+
+    #[test]
+    fn lookup_metrics_only_when_enabled() {
+        let mut state = State::new(epoch_plus(1_000));
+        assert!(!render_with(&state, false).contains("fishnet_game_lookups_total"));
+
+        state.lookup = crate::lookup::Queue::new(true, "https://lichess.org");
+        state.lookup.counts.ok = 7;
+        state.history.all.titled = 3;
+        state.history.all.patron = 2;
+        state.history.all.by_title.insert("GM".into(), 2);
+        let out = render_with(&state, false);
+        assert!(
+            out.contains("fishnet_game_lookups_total{result=\"ok\"} 7\n"),
+            "{out}"
+        );
+        assert!(out.contains("fishnet_game_lookups_total{result=\"ratelimited\"} 0\n"));
+        assert!(out.contains("fishnet_games_titled_total 3\n"));
+        assert!(out.contains("fishnet_games_titled_by_title_total{title=\"GM\"} 2\n"));
+        assert!(out.contains("fishnet_games_supporter_total 2\n"));
+        assert!(!has_sample(&out, "fishnet_top_game_rating"));
     }
 
     #[test]
