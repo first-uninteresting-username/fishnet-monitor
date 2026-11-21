@@ -11,7 +11,10 @@ use std::{
 
 use serde::Serialize;
 
-use crate::parser::{Event, Level, LogLine};
+use crate::{
+    history::{self, Activity, History, LookupMark, ProblemLevel},
+    parser::{Event, Level, LogLine},
+};
 
 /// What fishnet is doing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -183,6 +186,9 @@ pub struct State {
 
     /// A stall alert has fired and not yet been re-armed by activity.
     pub stall_alerted: bool,
+
+    /// What the dashboard shows over time; saved to `HISTORY_FILE`.
+    pub history: History,
 }
 
 impl State {
@@ -217,6 +223,7 @@ impl State {
             engine_timeouts: 0,
             batches_aborted: 0,
             stall_alerted: false,
+            history: History::new(now),
         }
     }
 
@@ -229,8 +236,20 @@ impl State {
             self.unparsed_lines += 1;
         }
 
+        if !matches!(line.event, Event::Fatal | Event::Panic) {
+            let lvl = match line.level {
+                Level::Warning => Some(ProblemLevel::W),
+                Level::Error => Some(ProblemLevel::E),
+                _ => None,
+            };
+            if let Some(lvl) = lvl {
+                self.history.record_problem(now, lvl, &line.message);
+            }
+        }
+
         match &line.event {
             Event::BatchFinished(b) => {
+                self.history.record_batch(now, b, LookupMark::Skipped);
                 let key = (b.variant.as_str().to_string(), b.eval.as_str().to_string());
                 *self.batches_finished.entry(key).or_insert(0) += 1;
                 if let Some(knps) = b.knps_per_core {
@@ -244,14 +263,22 @@ impl State {
             Event::Summary(s) => {
                 self.version = Some(s.version.clone());
                 self.nnue_knps_per_core = Some(s.nnue_knps_per_core);
+                if let Some(cores) = self.cores {
+                    let mnps = f64::from(s.nnue_knps_per_core) * f64::from(cores) / 1000.0;
+                    self.history.record_speed(now, mnps);
+                }
                 // The stats file is more precise and is re-read on every
                 // change, so it keeps priority over the summary.
                 if self.totals_source != TotalsSource::StatsFile {
-                    self.totals = Totals {
+                    let totals = Totals {
                         batches: s.batches,
                         positions: s.positions,
                         nodes: s.nodes,
                     };
+                    if self.totals_source == TotalsSource::Summary {
+                        self.record_work(totals, now);
+                    }
+                    self.totals = totals;
                     self.totals_source = TotalsSource::Summary;
                 }
             }
@@ -285,10 +312,56 @@ impl State {
         None
     }
 
-    /// The stats file was (re)read.
-    pub fn apply_stats_file(&mut self, totals: Totals) {
+    /// The stats file was (re)read. The first reading is only a baseline;
+    /// later ones add what changed to the history.
+    pub fn apply_stats_file(&mut self, totals: Totals, now: SystemTime) {
+        if self.totals_source == TotalsSource::StatsFile {
+            self.record_work(totals, now);
+        }
         self.totals = totals;
         self.totals_source = TotalsSource::StatsFile;
+    }
+
+    /// Adds the work between `self.totals` and `totals` to the history. A
+    /// counter that went down (a new stats file) adds nothing.
+    fn record_work(&mut self, totals: Totals, now: SystemTime) {
+        if totals.positions >= self.totals.positions && totals.nodes >= self.totals.nodes {
+            self.history.record_work(
+                now,
+                totals.positions - self.totals.positions,
+                totals.nodes - self.totals.nodes,
+            );
+        }
+    }
+
+    /// What fishnet is doing right now, for the history's time accounting.
+    pub fn activity(&self, now: SystemTime) -> Activity {
+        if !self.child_running || self.run_state == RunState::Stopped {
+            return Activity::Stopped;
+        }
+        if self.run_state == RunState::Idle {
+            return Activity::Idle;
+        }
+        let quiet_since = match self.idle_until {
+            Some(until) if until > self.last_activity_at => until,
+            _ => self.last_activity_at,
+        };
+        let quiet = matches!(self.run_state, RunState::Starting | RunState::Running)
+            && now
+                .duration_since(quiet_since)
+                .is_ok_and(|d| d >= history::QUIET_AFTER);
+        if quiet {
+            Activity::Quiet
+        } else {
+            Activity::Busy
+        }
+    }
+
+    /// Called every few seconds: time accounting and expiry in the
+    /// history. Returns true when a new minute began.
+    pub fn tick(&mut self, now: SystemTime) -> bool {
+        let activity = self.activity(now);
+        self.history.tick(now, activity)
     }
 
     /// The child was spawned.
@@ -468,6 +541,8 @@ impl State {
             Level::Info => "",
         };
         let text = format!("{prefix}{}", line.message);
+        self.history
+            .record_problem(now, ProblemLevel::F, &line.message);
         self.fatal = true;
         self.fatal_at = Some(now);
         self.fatal_line = Some(text.clone());
@@ -606,6 +681,88 @@ mod tests {
     }
 
     #[test]
+    fn history_gets_batches_problems_and_fatal_lines() {
+        let mut s = State::new(t(1000));
+        feed(&mut s, BATCH, t(1001));
+        feed(&mut s, ABORTED, t(1002));
+        feed(&mut s, ENGINE_ERROR, t(1003));
+        feed(&mut s, "D: some debug detail", t(1003));
+        feed(&mut s, FATAL, t(1004));
+
+        assert_eq!(s.history.batches.len(), 1);
+        assert_eq!(s.history.minutes[0].batches, 1);
+        let lines: Vec<_> = s
+            .history
+            .problems
+            .iter()
+            .map(|p| (p.lvl, p.msg.as_str()))
+            .collect();
+        assert_eq!(
+            lines,
+            vec![
+                (
+                    ProblemLevel::F,
+                    "Client update or reconfiguration might be required. Stopping queue."
+                ),
+                (ProblemLevel::E, "Engine error: Broken pipe (os error 32)"),
+                (ProblemLevel::W, "Aborting batch 9e4f01ab."),
+            ]
+        );
+    }
+
+    #[test]
+    fn stats_file_changes_become_work_in_the_history() {
+        let mut s = State::new(t(1000));
+        let totals = |positions, nodes| Totals {
+            batches: 1,
+            positions,
+            nodes,
+        };
+        // The first reading is the baseline.
+        s.apply_stats_file(totals(100, 1000), t(1001));
+        assert_eq!(s.history.all.positions, 0);
+        s.apply_stats_file(totals(160, 1600), t(1002));
+        assert_eq!((s.history.all.positions, s.history.all.nodes), (60, 600));
+        // A reset file adds nothing.
+        s.apply_stats_file(totals(5, 50), t(1003));
+        assert_eq!(s.history.all.positions, 60);
+        // The summary doesn't count once the stats file is read.
+        feed(&mut s, SUMMARY, t(1004));
+        assert_eq!(s.history.all.positions, 60);
+    }
+
+    #[test]
+    fn summary_changes_become_work_without_a_stats_file() {
+        let mut s = State::new(t(1000));
+        feed(&mut s, CORES, t(1000));
+        feed(&mut s, SUMMARY, t(1000));
+        assert_eq!(s.history.all.positions, 0, "first summary is the baseline");
+        assert_eq!(s.history.minutes[0].mnps, Some(1180.0 * 4.0 / 1000.0));
+        s.totals.positions -= 40;
+        s.totals.nodes -= 400;
+        feed(&mut s, SUMMARY, t(1120));
+        assert_eq!((s.history.all.positions, s.history.all.nodes), (40, 400));
+    }
+
+    #[test]
+    fn activity_for_time_accounting() {
+        let mut s = State::new(t(1000));
+        assert_eq!(s.activity(t(1000)), Activity::Stopped);
+        s.child_started(t(1000));
+        assert_eq!(s.activity(t(1010)), Activity::Busy);
+        assert_eq!(s.activity(t(1180)), Activity::Quiet);
+        feed(&mut s, "Going idle for 90s.", t(1200));
+        assert_eq!(s.activity(t(1250)), Activity::Idle);
+        feed(&mut s, BATCH, t(1300));
+        // Quiet counts from the end of the idle wait.
+        assert_eq!(s.activity(t(1400)), Activity::Busy);
+        assert_eq!(s.activity(t(1500)), Activity::Quiet);
+        s.child_exited(Some(0), true, t(1600));
+        assert_eq!(s.activity(t(1600)), Activity::Stopped);
+        assert!(s.tick(t(1600)));
+    }
+
+    #[test]
     fn counts_levels_and_unparsed_lines() {
         let mut s = State::new(t(1000));
         feed(&mut s, "something newer fishnet prints", t(1001)); // info, unparsed
@@ -668,7 +825,7 @@ mod tests {
         };
 
         let mut s = State::new(t(1000));
-        s.apply_stats_file(file);
+        s.apply_stats_file(file, t(1000));
         feed(&mut s, SUMMARY, t(1000));
         assert_eq!(s.totals, file);
         assert_eq!(s.totals_source, TotalsSource::StatsFile);
@@ -676,7 +833,7 @@ mod tests {
         // A summary that arrives first is replaced by the stats file.
         let mut s = State::new(t(1000));
         feed(&mut s, SUMMARY, t(1000));
-        s.apply_stats_file(file);
+        s.apply_stats_file(file, t(1000));
         assert_eq!(s.totals, file);
         assert_eq!(s.totals_source, TotalsSource::StatsFile);
     }

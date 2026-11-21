@@ -2,6 +2,7 @@
 //! doing. See `PLAN.md` for the overall design.
 
 pub mod config;
+pub mod history;
 pub mod http;
 pub mod metrics;
 pub mod parser;

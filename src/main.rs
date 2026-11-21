@@ -54,7 +54,7 @@ fn main() -> ExitCode {
     }
 }
 
-/// How often the stall check runs.
+/// How often the stall check and the history's time accounting run.
 const STALL_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 /// How often the stats file is polled.
 const STATS_POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -147,10 +147,12 @@ async fn supervise(config: Config, command: Vec<String>) -> i32 {
             let mut tick = tokio::time::interval(STALL_CHECK_INTERVAL);
             loop {
                 tick.tick().await;
-                let alert = state
-                    .lock()
-                    .unwrap()
-                    .check_stall(SystemTime::now(), timeout);
+                let now = SystemTime::now();
+                let alert = {
+                    let mut state = state.lock().unwrap();
+                    state.tick(now);
+                    state.check_stall(now, timeout)
+                };
                 if let Some(alert) = alert {
                     let _ = alerts.try_send(alert);
                 }

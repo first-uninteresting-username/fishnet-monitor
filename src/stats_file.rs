@@ -46,7 +46,7 @@ pub async fn watch(path: PathBuf, interval: Duration, state: Arc<Mutex<State>>) 
             state
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
-                .apply_stats_file(totals);
+                .apply_stats_file(totals, std::time::SystemTime::now());
         }
     }
 }
