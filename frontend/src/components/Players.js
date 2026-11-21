@@ -36,8 +36,9 @@ export function Player({ p, side }) {
 export const Pair = ({ game }) =>
   html`<div class="grid gap-0.5"><${Player} p=${game.white} side="w" /><${Player} p=${game.black} side="b" /></div>`;
 
-export const GameLink = ({ id, title }) =>
-  html`<a class="text-primary font-mono hover:underline" href=${`https://lichess.org/${id}`} target="_blank" rel="noopener" title=${title}>${id}</a>`;
+// `href` defaults to the game on lichess.org.
+export const GameLink = ({ id, href, title }) =>
+  html`<a class="text-primary font-mono hover:underline" href=${href ?? `https://lichess.org/${id}`} target="_blank" rel="noopener" title=${title}>${id}</a>`;
 
 // Average of both ratings; games against the computer aren't ranked.
 export function GameRating({ game }) {

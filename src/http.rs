@@ -12,7 +12,7 @@ use std::{
 use axum::{
     Json, Router,
     extract::{Query, State as Extract},
-    http::{StatusCode, header},
+    http::{HeaderMap, Method, StatusCode, Uri, header},
     response::{
         IntoResponse, Response,
         sse::{Event, KeepAlive, Sse},
@@ -23,7 +23,7 @@ use futures_util::{Stream, stream};
 use tokio::sync::watch;
 
 use crate::{
-    metrics,
+    frontend, metrics,
     state::{State, StatusContext},
     view::{self, Changes, Topic, Tz},
 };
@@ -43,6 +43,8 @@ pub struct AppState {
 }
 
 /// Routes:
+/// - `GET /` and every other path: the dashboard's files ([`frontend`]),
+///   with an ETag; unknown paths are 404.
 /// - `GET /api/status`: `State::status` as JSON.
 /// - `GET /api/history?tz=<minutes>`: [`view::history`]. `tz` is the page's
 ///   `Date.getTimezoneOffset()`, for the "today" counts.
@@ -59,6 +61,7 @@ pub fn router(app: AppState) -> Router {
         .route("/api/events", get(api_events))
         .route("/metrics", get(metrics_endpoint))
         .route("/healthz", get(healthz))
+        .fallback(static_file)
         .with_state(app)
 }
 
@@ -107,6 +110,35 @@ fn loopback_if_unspecified(addr: SocketAddr) -> SocketAddr {
 /// recovered rather than propagated, so the monitor keeps answering.
 fn lock(app: &AppState) -> MutexGuard<'_, State> {
     view::lock(&app.state)
+}
+
+/// Serves an embedded dashboard file. Revalidated on every load
+/// (`no-cache`), so a new image never serves an old page.
+async fn static_file(method: Method, uri: Uri, headers: HeaderMap) -> Response {
+    let path = match uri.path().trim_start_matches('/') {
+        "" => "index.html",
+        path => path,
+    };
+    let Some((bytes, etag)) = frontend::get(path) else {
+        return (StatusCode::NOT_FOUND, "not found\n").into_response();
+    };
+    if method != Method::GET && method != Method::HEAD {
+        return StatusCode::METHOD_NOT_ALLOWED.into_response();
+    }
+    let cache = [(header::ETAG, etag), (header::CACHE_CONTROL, "no-cache")];
+    let fresh = headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.split(',').any(|tag| tag.trim() == etag));
+    if fresh {
+        return (StatusCode::NOT_MODIFIED, cache).into_response();
+    }
+    (
+        [(header::CONTENT_TYPE, frontend::content_type(path))],
+        cache,
+        bytes,
+    )
+        .into_response()
 }
 
 async fn api_history(Extract(app): Extract<AppState>, Query(tz): Query<Tz>) -> Response {
@@ -327,6 +359,40 @@ mod tests {
         let addr = spawn_server(test_app()).await;
         let response = raw_request(addr, "GET", "/nope").await;
         assert!(response.starts_with("HTTP/1.1 404"), "{response}");
+    }
+
+    #[tokio::test]
+    async fn serves_the_dashboard_with_etags() {
+        let addr = spawn_server(test_app()).await;
+        let response = raw_request(addr, "GET", "/").await;
+        assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+        assert!(response.contains("content-type: text/html; charset=utf-8"));
+        assert!(response.contains("cache-control: no-cache"));
+        assert!(response.contains("importmap"));
+
+        let js = raw_request(addr, "GET", "/src/live.js").await;
+        assert!(js.contains("content-type: text/javascript"), "{js}");
+
+        let (_, etag) = frontend::get("index.html").unwrap();
+        let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+        let request = format!(
+            "GET /index.html HTTP/1.1\r\nHost: x\r\nIf-None-Match: {etag}\r\nConnection: close\r\n\r\n"
+        );
+        stream.write_all(request.as_bytes()).await.unwrap();
+        let mut response = String::new();
+        stream.read_to_string(&mut response).await.unwrap();
+        assert!(response.starts_with("HTTP/1.1 304"), "{response}");
+
+        assert!(
+            raw_request(addr, "GET", "/tailwind.css")
+                .await
+                .starts_with("HTTP/1.1 404")
+        );
+        assert!(
+            raw_request(addr, "POST", "/")
+                .await
+                .starts_with("HTTP/1.1 405")
+        );
     }
 
     #[tokio::test]

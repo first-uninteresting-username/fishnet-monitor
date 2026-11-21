@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>fishnet-monitor</title>
+  <!-- Served by fishnet-monitor (embedded in the binary). Paths are relative,
+       so the page also works under a reverse-proxy subpath. -->
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preload" href="vendor/roboto-flex-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+  <script type="importmap">
+    {
+      "imports": {
+        "preact": "./vendor/preact.mjs",
+        "preact/hooks": "./vendor/preact-hooks.mjs",
+        "htm": "./vendor/htm.mjs",
+        "@preact/signals-core": "./vendor/signals-core.mjs",
+        "@preact/signals": "./vendor/signals.mjs",
+        "uplot": "./vendor/uplot.mjs",
+        "clsx": "./vendor/clsx.mjs",
+        "tailwind-merge": "./vendor/tailwind-merge.mjs",
+        "class-variance-authority": "./vendor/cva.mjs"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { render } from "preact";
+    import { html } from "./src/html.js";
+    import { App } from "./src/app.js";
+    import { start } from "./src/live.js";
+
+    start();
+    render(html`<${App} />`, document.getElementById("app"));
+  </script>
+</body>
+</html>

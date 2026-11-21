@@ -83,7 +83,7 @@ for (let i = 0, t = START; i < 9; i++) {
 }
 
 // ---------- positions history ----------
-const RANGES = { "1h": [60, 1, 11], "6h": [72, 5, 5], "24h": [288, 5, 7], "7d": [336, 30, 23] }; // buckets, minutes each, seed
+const RANGES = { "1h": [60, 1, 11], "6h": [72, 5, 5], "24h": [288, 5, 7], "7d": [336, 30, 23], "7w": [294, 240, 29] }; // buckets, minutes each, seed
 const IDLE = [[1140, 1210], [790, 835], [360, 385], [210, 225], [540, 635]]; // minutes ago, within a day
 const isIdle = (m) => IDLE.some(([a, b]) => m >= a && m < b);
 
@@ -97,8 +97,9 @@ function history(state, now, quietMin) {
       const daily = 0.75 + 0.25 * Math.sin((m / 1440) * Math.PI * 2 + 1.3);
       let v = (52 + rnd() * 28) * daily;
       let kind = "busy";
-      if (range !== "7d" && isIdle(m % 1440)) v = 0;
-      if (range === "7d" && rnd() < 0.12) v *= 0.3;
+      const long = range === "7d" || range === "7w";
+      if (!long && isIdle(m % 1440)) v = 0;
+      if (long && rnd() < 0.12) v *= 0.3;
       if ((state === "stopped" || state === "fatal") && m < 5) [v, kind] = [0, "stop"];
       else if (state === "idle" && m < 3) v = 0;
       else if (state === "stalling" && m < quietMin) [v, kind] = [0, "quiet"];

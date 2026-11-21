@@ -14,7 +14,7 @@ import { Empty, Legend, Panel, Seg } from "./common.js";
 import { Button } from "./ui/button.js";
 import { TIP } from "./Spark.js";
 
-const RANGES = [["1h", "1 h"], ["6h", "6 h"], ["24h", "24 h"], ["7d", "7 d"]];
+const RANGES = [["1h", "1 h"], ["6h", "6 h"], ["24h", "24 h"], ["7d", "7 d"], ["7w", "7 w"]];
 const MIN_ZOOM_BUCKETS = 4;
 const FONT = '10px "Roboto Mono", ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace';
 
@@ -204,7 +204,17 @@ function options(el, s, c, tip) {
       points: { size: 9, width: 2, fill: c.accent, stroke: c.surface },
     },
     scales: {
-      x: { time: true },
+      // A short series (a new history) still spans a few buckets. uPlot
+      // would widen a single point by 86400 / ms, years with seconds.
+      x: {
+        time: true,
+        range: (u, min, max) => {
+          const { t, step } = s.data;
+          const span = MIN_ZOOM_BUCKETS * step;
+          if (t.length > 0 && t.length < MIN_ZOOM_BUCKETS) return [t[t.length - 1] - span, t[t.length - 1]];
+          return max - min < span ? [max - span, max] : [min, max];
+        },
+      },
       y: { range: (u, min, max) => [0, Math.max(10, max) * 1.08] },
     },
     axes: [

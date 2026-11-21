@@ -18,18 +18,31 @@ function Live() {
   </span>`;
 }
 
+// Players cell text when there are no players to show, by lookup state.
+// `lookup` is pending | done | missing | skipped (no game, or another endpoint).
+function noPlayers(b, ratelimited) {
+  if (b.lookup === "missing") return "Not found on lichess";
+  if (b.lookup === "skipped") return b.url ? "Not looked up (other endpoint)" : "No game: not looked up";
+  return ratelimited ? "Waiting: lichess is rate-limiting lookups" : "Looking up players…";
+}
+
 function Row({ b, withPlayers, ratelimited }) {
-  const pending = html`<span class="text-muted-foreground text-[12.5px] italic">${ratelimited ? "Waiting: lichess is rate-limiting lookups" : "Looking up players…"}</span>`;
+  const pending = html`<span class="text-muted-foreground text-[12.5px] italic">${noPlayers(b, ratelimited)}</span>`;
+  const rating = b.lookup && b.lookup !== "pending" ? "—" : "…";
   return html`<${TableRow} class=${b.live ? "motion-safe:animate-flash" : ""}>
     <${TableCell} class="align-top font-mono tabular-nums max-sm:order-1">${hms(b.at)}<//>
     ${withPlayers &&
     html`<${TableCell} class="max-sm:order-3 max-sm:col-span-full">${b.game ? html`<${Pair} game=${b.game} />` : pending}<//>
       <${TableCell} class="text-right max-sm:order-4 max-sm:text-left" data-label="Rating">
-        ${b.game ? html`<${GameRating} game=${b.game} />` : html`<span class="text-muted-foreground italic">…</span>`}
+        ${b.game ? html`<${GameRating} game=${b.game} />` : html`<span class="text-muted-foreground italic">${rating}</span>`}
       <//>`}
     <${TableCell} class="max-sm:order-5 max-sm:text-right" data-label="Variant">${b.variant} <${Chip} class=${cn("ml-1", ENGINE[b.eval])}>${b.eval}<//><//>
-    <${TableCell} class="text-right font-mono tabular-nums max-sm:order-6 max-sm:text-left" data-label="knps/core">${fmt(b.knps)}<//>
-    <${TableCell} class="max-sm:order-2 max-sm:text-right"><${GameLink} id=${b.id} title=${b.example && "Example ID, not a real game"} /><//>
+    <${TableCell} class="text-right font-mono tabular-nums max-sm:order-6 max-sm:text-left" data-label="knps/core">${b.knps != null ? fmt(b.knps) : html`<span class="text-muted-foreground" title="fishnet printed ? nps">—</span>`}<//>
+    <${TableCell} class="max-sm:order-2 max-sm:text-right">
+      ${b.url === null
+        ? html`<span class="text-muted-foreground font-mono" title="Batch without a game">${b.id}</span>`
+        : html`<${GameLink} id=${b.id} href=${b.url} title=${b.example && "Example ID, not a real game"} />`}
+    <//>
   <//>`;
 }
 

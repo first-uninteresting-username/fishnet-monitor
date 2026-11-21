@@ -13,7 +13,7 @@ WORKDIR /src
 
 # Build context is filtered by .dockerignore. frontend/ has to be there because
 # the dashboard files get embedded into the binary at compile time.
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock build.rs ./
 COPY src ./src
 COPY frontend ./frontend
 
