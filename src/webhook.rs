@@ -1,10 +1,10 @@
 //! Webhook notifications for `fatal` and `stall` (see "Webhooks" in
 //! `PLAN.md`).
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use serde::Serialize;
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, task::JoinSet};
 
 use crate::state::Alert;
 
@@ -22,8 +22,13 @@ pub struct Payload {
 
 impl Payload {
     pub fn new(alert: &Alert, host: &str) -> Payload {
-        let _ = (alert, host);
-        todo!("fragment: webhook")
+        Payload {
+            event: alert.kind.as_str().to_owned(),
+            time: humantime::format_rfc3339_seconds(alert.time).to_string(),
+            host: host.to_owned(),
+            state: alert.state.clone(),
+            message: alert.message.clone(),
+        }
     }
 }
 
@@ -56,8 +61,43 @@ pub async fn send(
     payload: &Payload,
     delivery: &Delivery,
 ) -> Result<(), String> {
-    let _ = (client, url, payload, delivery);
-    todo!("fragment: webhook")
+    // Try once, then once more after each wait. The waits run out after the
+    // last retry, and that attempt's error is the one returned.
+    let mut waits = delivery.backoff.iter();
+    loop {
+        let err = match attempt(client, url, payload, delivery.timeout).await {
+            Ok(()) => return Ok(()),
+            Err(err) => err,
+        };
+        match waits.next() {
+            Some(wait) => tokio::time::sleep(*wait).await,
+            None => return Err(err),
+        }
+    }
+}
+
+async fn attempt(
+    client: &reqwest::Client,
+    url: &str,
+    payload: &Payload,
+    timeout: Duration,
+) -> Result<(), String> {
+    let response = client
+        .post(url)
+        .json(payload)
+        .timeout(timeout)
+        .send()
+        .await
+        .and_then(reqwest::Response::error_for_status);
+    match response {
+        Ok(_) => Ok(()),
+        // Report the status code only. The default message includes the URL,
+        // which can carry a secret (Slack-style webhook tokens).
+        Err(err) => Err(match err.status() {
+            Some(status) => format!("HTTP {}", status.as_u16()),
+            None => err.without_url().to_string(),
+        }),
+    }
 }
 
 /// Receives alerts and delivers each one on its own task, so a slow
@@ -71,6 +111,28 @@ pub async fn run(
     mut alerts: mpsc::Receiver<Alert>,
     on_failure: impl Fn(String) + Send + Sync + 'static,
 ) {
-    let _ = (&url, &host, &delivery, &mut alerts, on_failure);
-    todo!("fragment: webhook")
+    // One client so connections are pooled across alerts.
+    let client = reqwest::Client::new();
+    let url = Arc::new(url);
+    let host = Arc::new(host);
+    let delivery = Arc::new(delivery);
+    let on_failure = Arc::new(on_failure);
+
+    let mut tasks = JoinSet::new();
+    while let Some(alert) = alerts.recv().await {
+        let client = client.clone();
+        let url = Arc::clone(&url);
+        let host = Arc::clone(&host);
+        let delivery = Arc::clone(&delivery);
+        let on_failure = Arc::clone(&on_failure);
+        tasks.spawn(async move {
+            let payload = Payload::new(&alert, &host);
+            if let Err(err) = send(&client, &url, &payload, &delivery).await {
+                on_failure(format!("webhook {} failed: {err}", payload.event));
+            }
+        });
+    }
+    // The channel is closed. Wait for the in-flight deliveries so the caller
+    // (and tests) see their effects before `run` returns.
+    tasks.join_all().await;
 }
