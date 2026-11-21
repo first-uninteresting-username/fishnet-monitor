@@ -73,6 +73,38 @@ merging. For a version change of your own, run `vendor-frontend --update` and
 
 <!-- People who helped, libraries you leaned on, asset packs you used. -->
 
+- [fishnet](https://github.com/lichess-org/fishnet) by the lichess.org team
+  (GPL-3.0-or-later). The Docker image is built on the upstream
+  [`niklasf/fishnet`](https://hub.docker.com/r/niklasf/fishnet) image, which
+  bundles [Stockfish](https://github.com/official-stockfish/Stockfish) and
+  [Fairy-Stockfish](https://github.com/fairy-stockfish/Fairy-Stockfish) (both GPL-3.0).
+  Game details come from the [Lichess API](https://lichess.org/api).
+
+Vendored into `frontend/vendor/` (versions in `frontend/vendor.lock`):
+
+- [Preact](https://preactjs.com) and [Preact Signals](https://github.com/preactjs/signals) (MIT)
+- [htm](https://github.com/developit/htm) (Apache-2.0)
+- [uPlot](https://github.com/leeoniya/uPlot) by Leon Sorokin (MIT)
+- [clsx](https://github.com/lukeed/clsx) (MIT)
+- [tailwind-merge](https://github.com/dcastil/tailwind-merge) (MIT)
+- [class-variance-authority](https://github.com/joe-bell/cva) (Apache-2.0)
+- [Roboto Flex](https://github.com/googlefonts/roboto-flex) by the Roboto Flex
+  Project Authors, via [Fontsource](https://fontsource.org) (SIL Open Font License 1.1;
+  license in `frontend/vendor/roboto-flex-LICENSE.txt`)
+
+Also used:
+
+- [Material Symbols](https://github.com/google/material-design-icons) by Google
+  (Apache-2.0) for the icons and favicon
+- [shadcn/ui](https://ui.shadcn.com) (MIT): the components in
+  `frontend/src/components/ui/` are ports of it, styled after
+  [Material 3](https://m3.material.io)
+- [Tailwind CSS](https://tailwindcss.com) (MIT), which generates `frontend/styles.css`
+- The Rust crates listed in `Cargo.toml`, among them
+  [axum](https://github.com/tokio-rs/axum), [tokio](https://tokio.rs),
+  [reqwest](https://github.com/seanmonstar/reqwest) and [serde](https://serde.rs)
+  (MIT / Apache-2.0)
+
 ## License
 
 This project is licensed under the [GNU GPL v3.0](LICENSE).
