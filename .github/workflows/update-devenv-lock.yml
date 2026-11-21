@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -45,9 +46,21 @@ jobs:
           body: Automated update of `devenv.lock` via `devenv update`.
           labels: dependencies
 
-      - name: Enable auto-merge
+      # main has no branch protection, and CI doesn't run on a PR opened with
+      # GITHUB_TOKEN, so there is nothing to wait for: `devenv test` above is
+      # the check. Merge right away.
+      - name: Merge
+        id: merge
         if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ steps.cpr.outputs.pull-request-number }}
-        run: gh pr merge "$PR" --squash --delete-branch --auto || gh pr merge "$PR" --squash --delete-branch
+        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+
+      # A push made with GITHUB_TOKEN doesn't trigger workflows, but a dispatch
+      # does: run CI on main so it tests and publishes the new image.
+      - name: Run CI on main
+        if: steps.merge.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref main

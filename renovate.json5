@@ -1,17 +1,24 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
-  // To let Renovate automerge its own PRs, add e.g.:
-  //   packageRules: [
-  //     {
-  //       matchUpdateTypes: ['minor', 'patch', 'pin', 'digest'],
-  //       automerge: true,
-  //     },
-  //   ],
   extends: [
     'config:recommended',
     'helpers:pinGitHubActionDigests',
     'docker:pinDigests',
   ],
+  // Every update merges itself once CI is green on the PR's last commit, majors
+  // included: CI's smoke test runs the real image, so a break shows there. The
+  // merge to main publishes a new :edge, which redeploys the orchard deployment.
+  // Renovate merges by itself (not GitHub's auto-merge), because main has no
+  // branch protection and GitHub would merge without waiting for CI. Without
+  // any check on the commit Renovate doesn't merge, so a PR CI never ran on
+  // stays open.
+  automerge: true,
+  platformAutomerge: false,
+  // Also refresh Cargo.lock's indirect dependencies once a week.
+  lockFileMaintenance: {
+    enabled: true,
+    automerge: true,
+  },
   // .github/workflows/refresh-vendored-frontend.yml commits on top of Renovate's
   // PRs; without this Renovate would treat them as edited and stop updating them.
   gitIgnoredAuthors: ['41898282+github-actions[bot]@users.noreply.github.com'],

@@ -1,7 +1,8 @@
 name: CI
 
 # Tests, the image for amd64 and arm64 with a smoke test on each, and on
-# main and v* tags the multi-arch image on GHCR (PLAN.md, phase 5).
+# main and v* tags the multi-arch image on GHCR (PLAN.md, phase 5); on main
+# it then redeploys the orchard deployment.
 # Renovate's base-image bumps run this too, so the smoke test's format-drift
 # check sees the new fishnet before the PR merges.
 
@@ -187,3 +188,23 @@ jobs:
         env:
           VERSION: ${{ steps.meta.outputs.version }}
         run: docker buildx imagetools inspect "$IMAGE:$VERSION"
+
+  # Roll the orchard deployment onto the new :edge. Without an image in the
+  # body the webhook restarts the deployment, which pulls :edge again (its pull
+  # policy is Always). Skipped when the secret isn't set, e.g. in a fork.
+  deploy:
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Redeploy on the orchard
+        env:
+          URL: ${{ vars.ORCHARD_DEPLOY_URL }}
+          TOKEN: ${{ secrets.ORCHARD_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$TOKEN" ]; then
+            echo "ORCHARD_DEPLOY_URL or ORCHARD_DEPLOY_TOKEN isn't set; skipping."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 30 \
+            -X POST -H "Authorization: Bearer $TOKEN" "$URL"

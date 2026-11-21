@@ -3,7 +3,7 @@ name: Refresh vendored frontend
 # Renovate bumps versions in frontend/vendor.lock but can't run commands. This
 # finishes the job on its PRs: refresh the sums and vendored files, rebuild the
 # generated stylesheet (it inlines vendor/uplot.css), and push the result onto
-# the PR branch.
+# the PR branch, then run CI on it (see the last step).
 
 on:
   pull_request:
@@ -11,6 +11,7 @@ on:
       - frontend/vendor.lock
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -47,6 +48,7 @@ jobs:
         run: devenv shell -- build-css
 
       - name: Commit and push
+        id: commit
         env:
           BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
@@ -61,3 +63,15 @@ jobs:
               -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
               commit -m "chore(deps): refresh vendored frontend files"
           git push origin "HEAD:refs/heads/$BRANCH"
+          echo "pushed=true" >>"$GITHUB_OUTPUT"
+
+      # A push made with GITHUB_TOKEN doesn't trigger workflows, so CI wouldn't
+      # run on the new commit and Renovate, finding no checks, wouldn't
+      # automerge the PR. A dispatch does trigger them, and its checks land on
+      # the branch's head commit.
+      - name: Run CI on the new commit
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"

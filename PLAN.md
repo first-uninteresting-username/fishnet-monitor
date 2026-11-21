@@ -408,20 +408,25 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    - **Renovate base-image bumps** run the whole workflow, so the format-drift check
      sees the new fishnet's real output before the PR merges. When it fails, capture
      the new lines into `tests/fixtures/` (see its README) and fix the parser in the
-     same PR. Renovate's config needed no change.
+     same PR.
+   - **Automerge and redeploy:** Renovate merges every update itself (majors and a
+     weekly `Cargo.lock` maintenance included) once CI is green on the PR's last
+     commit; `platformAutomerge` is off, because without branch protection GitHub's
+     auto-merge wouldn't wait for CI. `refresh-vendored-frontend.yml` dispatches CI
+     on the branch after its push, so the PR's head commit has checks.
+     `update-devenv-lock.yml` merges its PR right after its own `devenv test` and
+     dispatches CI on `main`. Every CI run on `main` ends with a `deploy` job that
+     POSTs to the orchard deploy webhook (`ORCHARD_DEPLOY_URL` variable,
+     `ORCHARD_DEPLOY_TOKEN` secret), which restarts the `fishnet` deployment onto
+     the new `:edge`.
    - **Demo on GitHub Pages:** `.github/workflows/pages.yml` publishes `demo/` (the
      real frontend with mock data, no backend) to
      <https://first-uninteresting-username.github.io/fishnet-monitor/> on every push
      to `main` that changes `demo/` or `frontend/`. The site keeps the repository
      layout, because `demo/index.html` loads `../frontend/`; the root redirects to
      `demo/`.
-   - **Branch protection: not enabled.** Required checks would block the direct
-     pushes to `main` this repository uses, and they would never report on the
-     automated PRs: `update-devenv-lock.yml` opens its PR and
-     `refresh-vendored-frontend.yml` pushes onto Renovate's branches with
-     `GITHUB_TOKEN`, which doesn't trigger workflows, so CI never runs on their last
-     commit. Turning it on needs a GitHub App or PAT token for those two workflows
-     (or a ruleset that only applies to pull requests) first.
+   - **Branch protection: not enabled**, by choice: `main` takes direct pushes.
+     CI still gates the automated updates, as above.
 
 ## Decisions
 
