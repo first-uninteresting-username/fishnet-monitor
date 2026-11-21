@@ -341,8 +341,9 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
 
    The image isn't tested by hand in this phase; that's phase 5's smoke test. A local
    build, when one is needed, uses the host's podman (`podman build .`), not a
-   runtime added to devenv. The port stays 9465 unless it collides with something on
-   the host (see the open questions); the image name waits for phase 5.
+   runtime added to devenv. The port stays 9465. The container image is the only
+   supported way to run the monitor, so the port is set by the image; checking that
+   9465 is free on the host is left to whoever deploys it.
 5. **CI.** GitHub Actions, in one new workflow (`.github/workflows/ci.yml`) next to
    the two that exist. It runs on pushes to `main`, on `v*` tags, on pull requests
    (Renovate's included) and by hand. What's left, in order:
@@ -436,18 +437,17 @@ receivers, a home-automation hook, and so on) when fishnet needs attention.
    pass on the new workflow.
 
    Decisions this phase settles: arm64 is built natively, not under QEMU, and the
-   smoke test replaces the manual image checks. Proposed, to confirm before the
-   first publish: the image is `ghcr.io/first-uninteresting-username/fishnet-monitor`
-   (taken from the repository name, so nothing is hard-coded), and `latest` only
-   moves on a release tag.
+   smoke test replaces the manual image checks. The image is
+   `ghcr.io/first-uninteresting-username/fishnet-monitor` (taken from the repository
+   name, so nothing is hard-coded), and `latest` only moves on a release tag.
 
-## Open questions
+## Decisions
 
-- **Registry and image name:** proposed in phase 5: `ghcr.io/<owner>/fishnet-monitor`,
-  `edge` from `main`, `latest` only from release tags. Confirm before the first publish.
-- **One client or several?** The plan covers one dashboard per container. A single
-  dashboard showing several machines would need a separate aggregator, which is a
-  different project.
-- **Verbose mode:** settled in phase 4. There's no switch; verbose needs the command
-  override (see [Architecture](#architecture)).
-- **Port:** `9465` is a placeholder; check it doesn't collide with anything on the host.
+- **Registry and image name:** `ghcr.io/first-uninteresting-username/fishnet-monitor`,
+  `edge` from `main`, `latest` only from release tags.
+- **One client:** one dashboard per container, tied to a single fishnet instance.
+  Showing several machines would need a separate aggregator, which is out of scope.
+- **Verbose mode:** no switch; verbose output needs the command override (see
+  [Architecture](#architecture)).
+- **Port:** `9465`, set by the container image, which is the only supported way to
+  run the monitor.
