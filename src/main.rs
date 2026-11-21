@@ -5,18 +5,43 @@ use std::{
     process::ExitCode,
 };
 
-use fishnet_monitor::parser::parse_line;
+use std::{
+    sync::{Arc, Mutex},
+    time::{Duration, SystemTime},
+};
+
+use fishnet_monitor::{
+    config::Config,
+    http::{self, AppState},
+    parser::parse_line,
+    state::{Alert, State, StatusContext},
+    stats_file,
+    supervisor::{self, ChildEvent, ChildSpec},
+    webhook::{self, Delivery},
+};
+use tokio::sync::mpsc;
 
 const USAGE: &str = "\
 usage: fishnet-monitor <command>
 
 commands:
+  run [--] CMD...  run CMD (the fishnet entrypoint) and monitor it
+  healthcheck      exit 0 if the monitor on MONITOR_LISTEN reports healthy
   parse [FILE]   parse fishnet log lines from FILE (or stdin) and print the
                  events, to check the parser against real output";
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
     match args.first().map(String::as_str) {
+        Some("run") => {
+            let rest = &args[1..];
+            let command = match rest.first().map(String::as_str) {
+                Some("--") => &rest[1..],
+                _ => rest,
+            };
+            run(command.to_vec())
+        }
+        Some("healthcheck") => healthcheck(),
         Some("parse") => parse(args.get(1).map(String::as_str)),
         Some("-h" | "--help") => {
             println!("{USAGE}");
@@ -27,6 +52,166 @@ fn main() -> ExitCode {
             ExitCode::from(2)
         }
     }
+}
+
+/// How often the stall check runs.
+const STALL_CHECK_INTERVAL: Duration = Duration::from_secs(5);
+/// How often the stats file is polled.
+const STATS_POLL_INTERVAL: Duration = Duration::from_secs(2);
+/// How long to wait for webhooks still being delivered after fishnet exits.
+const WEBHOOK_DRAIN_TIMEOUT: Duration = Duration::from_secs(40);
+
+fn config() -> Result<Config, ExitCode> {
+    Config::from_env().map_err(|err| {
+        eprintln!("fishnet-monitor: {err}");
+        ExitCode::from(2)
+    })
+}
+
+fn healthcheck() -> ExitCode {
+    let config = match config() {
+        Ok(config) => config,
+        Err(code) => return code,
+    };
+    if http::healthcheck(config.listen) {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
+
+fn run(command: Vec<String>) -> ExitCode {
+    if command.is_empty() {
+        eprintln!("fishnet-monitor: run: no command given\n{USAGE}");
+        return ExitCode::from(2);
+    }
+    let config = match config() {
+        Ok(config) => config,
+        Err(code) => return code,
+    };
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(runtime) => runtime,
+        Err(err) => {
+            eprintln!("fishnet-monitor: can't start the runtime: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let code = runtime.block_on(supervise(config, command));
+    ExitCode::from(u8::try_from(code).unwrap_or(1))
+}
+
+async fn supervise(config: Config, command: Vec<String>) -> i32 {
+    let state = Arc::new(Mutex::new(State::new(SystemTime::now())));
+    let (alert_tx, alert_rx) = mpsc::channel::<Alert>(16);
+
+    let webhook = config.webhook_url.clone().map(|url| {
+        // The problems list arrives in phase 3; until then a final failure
+        // goes to our stderr in fishnet's warning format.
+        tokio::spawn(webhook::run(
+            url,
+            config.host_name.clone(),
+            Delivery::default(),
+            alert_rx,
+            |msg| eprintln!("W: fishnet-monitor: {msg}"),
+        ))
+    });
+
+    if let Some(path) = config.stats_file.clone() {
+        tokio::spawn(stats_file::watch(
+            path,
+            STATS_POLL_INTERVAL,
+            Arc::clone(&state),
+        ));
+    }
+
+    let app = AppState {
+        state: Arc::clone(&state),
+        ctx: Arc::new(StatusContext {
+            host: config.host_name.clone(),
+            listen: config.listen.to_string(),
+            stall_timeout: config.stall_timeout,
+        }),
+    };
+    let listen = config.listen;
+    tokio::spawn(async move {
+        if let Err(err) = http::serve(listen, app).await {
+            eprintln!("W: fishnet-monitor: can't serve on {listen}: {err}");
+        }
+    });
+
+    let stall = {
+        let state = Arc::clone(&state);
+        let alerts = alert_tx.clone();
+        let timeout = config.stall_timeout;
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(STALL_CHECK_INTERVAL);
+            loop {
+                tick.tick().await;
+                let alert = state
+                    .lock()
+                    .unwrap()
+                    .check_stall(SystemTime::now(), timeout);
+                if let Some(alert) = alert {
+                    let _ = alerts.try_send(alert);
+                }
+            }
+        })
+    };
+
+    let (event_tx, mut event_rx) = mpsc::channel::<ChildEvent>(1024);
+    let spec = ChildSpec {
+        command,
+        forward_debug: config.forward_debug,
+    };
+    let child = tokio::spawn(supervisor::run(spec, event_tx));
+
+    let mut requested = false;
+    while let Some(event) = event_rx.recv().await {
+        let now = SystemTime::now();
+        let alert = {
+            let mut state = state.lock().unwrap();
+            match event {
+                ChildEvent::Started { .. } => {
+                    state.child_started(now);
+                    None
+                }
+                ChildEvent::Line { line, .. } => state.apply_line(&parse_line(&line), now),
+                ChildEvent::StopRequested => {
+                    requested = true;
+                    state.stop_requested();
+                    None
+                }
+                ChildEvent::Exited { code, .. } => state.child_exited(code, requested, now),
+            }
+        };
+        if let Some(alert) = alert {
+            let _ = alert_tx.try_send(alert);
+        }
+    }
+
+    let code = match child.await {
+        Ok(Ok(code)) => code,
+        Ok(Err(err)) => {
+            eprintln!("fishnet-monitor: can't run the child: {err}");
+            127
+        }
+        Err(err) => {
+            eprintln!("fishnet-monitor: supervisor failed: {err}");
+            1
+        }
+    };
+
+    // Let a final fatal webhook go out before exiting.
+    stall.abort();
+    drop(alert_tx);
+    if let Some(webhook) = webhook
+        && tokio::time::timeout(WEBHOOK_DRAIN_TIMEOUT, webhook)
+            .await
+            .is_err()
+    {
+        eprintln!("W: fishnet-monitor: gave up waiting for webhook delivery");
+    }
+    code
 }
 
 /// Prints one line per input line: level, unparsed marker and event. Exits
