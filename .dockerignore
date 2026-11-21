@@ -1,0 +1,6 @@
+# Allow-list: only what the builder stage copies.
+*
+!Cargo.toml
+!Cargo.lock
+!src/
+!frontend/
