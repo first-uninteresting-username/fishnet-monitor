@@ -14,7 +14,7 @@
 services:
   fishnet:
     # :edge follows main; pin a sha-<short> tag to stay on one build.
-    image: ghcr.io/first-uninteresting-username/fishnet-monitor:edge@sha256:902d149a6e14a6a18dd3333bbbc171277c40d2a61244e4c677744adeba2c8dbc
+    image: ghcr.io/first-uninteresting-username/fishnet-monitor:edge@sha256:34e5b6cd660dbd372a24212172ca0edf17d532ea5e46661820bc3399693adcce
     restart: unless-stopped
     environment:
       # Your fishnet key from https://lichess.org/get-fishnet. Every other
